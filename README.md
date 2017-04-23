@@ -18,6 +18,7 @@ Ideally, a successful implementation of a paper or patent implies writing code t
 * Code should either be written on your personal laptop or computer or on Latently's GPU cluster. Do not write code for this project at work or at school.
 * Code is subject to code review. Commits should be small and frequent.
 * Repositories for specific papers should be named as follows: Author1Author2Author3EtAl1996_1. In other words, the last name of the first three authors followed by EtAl if there are more than three and followed by the year. If more than one paper has that code then add an underscore and increment a counter that starts at 1.
+* You may not depend on libraries with viral licenses.
 
 ## FAQ
 
