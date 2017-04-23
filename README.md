@@ -12,7 +12,7 @@ Ideally, a successful implementation of a paper or patent implies writing code t
 
 ## Guidelines
 
-* Code must be written in Keras, Sonnet or Tensorflow.
+* Code must be written in Keras, Sonnet or Tensorflow. In the case of Keras, Tensorflow must be the backend.
 * Code should be factored out into a resuable library that makes it simpler to implement new papers. 
 * If existing implementations of a paper exist, **you must not look at them**. All code must be implemented with a cleanroom mentality.
 * Code should either be written on your personal laptop or computer or on Latently's GPU cluster. Do not write code for this project at work or at school.
