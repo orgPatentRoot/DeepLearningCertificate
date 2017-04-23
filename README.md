@@ -25,7 +25,7 @@ Ideally, a successful implementation of a paper or patent implies writing code t
 
 1. **Why are you doing this?**
 
-This project increases the talent pool for AI/ML which benefits both engineers and companies. Additionally, by abstracting implementations into libraries that implements the publically available literature we can more easily see what is patented and what is not in addition to discovering prior art that can be used to invalidate patents. It also helps new inventors know what inventions are OK to incorporate into new inventions and what inventions they will need to get permission to use. 
+This project increases the talent pool for AI/ML which benefits both engineers and companies. Additionally, by abstracting implementations into libraries that implement the publically available literature we can more easily see what is patented and what is not in addition to discovering prior art that can be used to invalidate patents. It also helps new inventors know what inventions are OK to incorporate into new inventions and what inventions they will need to get permission to use. 
 
 2. **Why The Unlicense? What is The Unlicense?**
 
