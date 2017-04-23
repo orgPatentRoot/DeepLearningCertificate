@@ -23,19 +23,19 @@ Ideally, a successful implementation of a paper or patent implies writing code t
 
 ## FAQ
 
-1. Why are you doing this?
+1. **Why are you doing this?**
 
 This project increases the talent pool for AI/ML which benefits both engineers and companies. Additionally, by abstracting implementations into libraries that implements the publically available literature we can more easily see what is patented and what is not in addition to discovering prior art that can be used to invalidate patents. It also helps new inventors know what inventions are OK to incorporate into new inventions and what inventions they will need to get permission to use. 
 
-2. Why The Unlicense? What is The Unlicense?
+2. **Why The Unlicense? What is The Unlicense?**
 
 We chose The Unlicense because we wish to place no additional restrictions on how the inventions are used and The Unlicense puts the code into the Public Domain. The primary purposes of the code is to document what's been done and to give engineers an opportunity to grow their skills. 
 
-3. Can I use the code?
+3. **Can I use the code?**
 
 The code is in the Public Domain, however, there may be additional restrictions on its use as documented in patents and otherwise. If you use this code in your business you do so at your own risk - Latently assumes no responsibility.
 
-4. How do I join?
+4. **How do I join?**
 
 Contact brian@latent.ly with your resume.
 
