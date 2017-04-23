@@ -6,9 +6,9 @@ In exchange for your implementation you'll earn 5% * 1/N phantom stock in Latent
 
 As part of the certificate program you'll gain valuable experience and access to our 16 GPU cluster provided by IBM. If you successfully implement the paper or patent and we approve the implementation we'll also issue you a formal certificate that recognizes the engineering maturity required to successfully implement a paper and you'll also have priority access to interview for salaried positions when they open up in the future.
 
-Code must be developed in public on our GitHub and released using The Unlicense (all code is in the public domain). Latently reserves the right to change these terms to help ensure the success of the program. Latently reserves the right to issue the Latently Deep Learning Certificate for other purposes, not limited to novel implementations of algorithms, collaborations, multiple certificates for one difficult paper, etc.
+Code must be developed in public on our GitHub and released using The Unlicense (all code is in the public domain). Latently reserves the right to change these terms to help ensure the success of the program and company. Latently reserves the right to issue the Latently Deep Learning Certificate for other purposes, not limited to novel implementations of algorithms, collaborations, multiple certificates for one difficult paper, etc.
 
-Ideally, a successful implementation of a paper implies writing code that replicates the findings in that paper. However, due to hardware constraints this may not be possible and so the nearest reasonable approximation is acceptable. If a certificate is issued for an implementation that was not a replication, that paper may be eligible for further development that results in a certificate being issued so that replication can be achieved.
+Ideally, a successful implementation of a paper or patent implies writing code that replicates the findings in that paper or patent. However, due to hardware constraints this may not be possible and so the nearest reasonable approximation may be acceptable if you get permission from us. If a certificate is issued for an implementation that was not a replication, that paper may be eligible for further development that results in a certificate being issued so that replication can be achieved.
 
 ## Guidelines
 
