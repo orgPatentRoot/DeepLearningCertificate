@@ -1,3 +1,15 @@
+# Structurally Contrained Recurrent Network (SCRN) Model
+#
+# This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
+# https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
+#
+# This code fails to implement hierarchical softmax at this time as Tensorflow does not appear to include an
+# implementation.  Hierarchical softmax can be included at a future date when hierarchical softmax is available 
+# for Tensorflow or by modifying the code to run in Keras which appears to have an implementation of hierarchical
+# softmax.
+#
+# Stuart Hagler, 2017
+
 # Imports
 import numpy as np
 import tensorflow as tf
@@ -6,8 +18,10 @@ import tensorflow as tf
 from batch_generator import batch_generator
 from log_prob import log_prob
 
-# SCRN graph
+# Tensorflow graph
 class scrn_graph(object):
+    
+    #
     def __init__(self, alpha, hidden_size, state_size, vocabulary_size, num_unfoldings, batch_size):
         
         #
@@ -56,18 +70,6 @@ class scrn_graph(object):
             validation_hidden_saved = tf.Variable(tf.zeros([1, hidden_size]))
             validation_state_saved = tf.Variable(tf.zeros([1, state_size]))
             
-            # Cell computation definition:
-            
-            # Use a SCRN cell following the definition given in Mikolov et al. 2015.
-            def scrn_cell(x, s, h):
-                state_arg = alpha * s + (1-alpha) * tf.matmul(x, B)
-                state = state_arg
-                hidden_arg = tf.matmul(state, P) + tf.matmul(x, A) + tf.matmul(h, R)
-                hidden = tf.sigmoid(hidden_arg + hidden_bias)
-                output_arg = tf.matmul(hidden, U) + tf.matmul(state, V)
-                output = output_arg + output_bias
-                return output, state, hidden
-            
             #
             self._initialization = tf.global_variables_initializer()
             
@@ -78,7 +80,7 @@ class scrn_graph(object):
             
             # Training:
             
-            # Unfold SRN.
+            # Unfold SCRN
             training_hidden = training_hidden_saved
             training_state = training_state_saved
             training_labels = []
@@ -87,7 +89,8 @@ class scrn_graph(object):
             for i in range(self._num_unfoldings):
                 training_input = self._training_data[i]
                 training_label = self._training_data[i+1]
-                training_output, training_state, training_hidden = scrn_cell(training_input, training_state, training_hidden)
+                training_output, training_state, training_hidden = self._scrn_cell(training_input,
+                    training_state, training_hidden, alpha, B, P, A, R, hidden_bias, U, V, output_bias)
                 training_labels.append(training_label)
                 training_outputs.append(training_output)
                 optimize_ctr += 1
@@ -102,7 +105,9 @@ class scrn_graph(object):
                                           training_hidden_saved.assign(training_hidden)]):
                 logits = tf.concat(training_outputs, 0)
                 labels = tf.concat(training_labels, 0)
-                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+                
+                # Replace with hierarchical softmax in the future
+                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)) 
                 
             # Optimizer.
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
@@ -119,14 +124,24 @@ class scrn_graph(object):
                                                     validation_hidden_saved.assign(tf.zeros([1, hidden_size])))
 
             # Run SRN on validation data
-            validation_output, validation_state, validation_hidden = scrn_cell(self._validation_input, validation_state_saved, 
-                                                                               validation_hidden_saved)
+            validation_output, validation_state, validation_hidden = self._scrn_cell(self._validation_input,
+                validation_state_saved, validation_hidden_saved,alpha, B, P, A, R, hidden_bias, U, V, output_bias)                                                                 
             with tf.control_dependencies([validation_state_saved.assign(validation_state), 
                                           validation_hidden_saved.assign(validation_hidden)]):
                 logits = validation_output
 
-                # Validation prediction
-                self._validation_prediction = tf.nn.softmax(logits)
+            # Validation prediction, replace with hierarchical softmax in the future
+            self._validation_prediction = tf.nn.softmax(logits)
+                
+    # SCRN cell definition:   .
+    def _scrn_cell(self, x, s, h, alpha, B, P, A, R, hidden_bias, U, V, output_bias):
+        state_arg = alpha * s + (1-alpha) * tf.matmul(x, B)
+        state = state_arg
+        hidden_arg = tf.matmul(state, P) + tf.matmul(x, A) + tf.matmul(h, R)
+        hidden = tf.sigmoid(hidden_arg + hidden_bias)
+        output_arg = tf.matmul(hidden, U) + tf.matmul(state, V)
+        output = output_arg + output_bias
+        return output, state, hidden
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, optimization_frequency, clip_norm, num_epochs, summary_frequency,

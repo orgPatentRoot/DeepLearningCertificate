@@ -1,3 +1,15 @@
+# Structurally Contrained Recurrent Network (SCRN) Model
+#
+# This gives an implementation of the LSTM model for comparison with the SCRN model given in Mikolov et al. 2015,
+# arXiv:1412.7753 [cs.NE], https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
+#
+# This code fails to implement hierarchical softmax at this time as Tensorflow does not appear to include an
+# implementation.  Hierarchical softmax can be included at a future date when hierarchical softmax is available 
+# for Tensorflow or by modifying the code to run in Keras which appears to have an implementation of hierarchical
+# softmax.
+#
+# Stuart Hagler, 2017
+
 # Imports
 import math
 import numpy as np
@@ -7,8 +19,10 @@ import tensorflow as tf
 from batch_generator import batch_generator
 from log_prob import log_prob
 
-# LSTM graph
+# Tensorflow graph
 class lstm_graph(object):
+    
+    #
     def __init__(self, hidden_size, vocabulary_size, num_unfoldings, batch_size):
         
         #
@@ -63,22 +77,6 @@ class lstm_graph(object):
             validation_output_saved = tf.Variable(tf.zeros([1, hidden_size]))
             validation_state_saved = tf.Variable(tf.zeros([1, hidden_size]))
             
-            # Cell computation definition:
-            
-            # Use a traditional LSTM cell following the definition given in Wikipedia, and largely
-            # using the notation used there.
-            def lstm_cell(x, h, c):
-                forget_arg = tf.matmul(x, Wf) + tf.matmul(h, Uf)
-                forget_gate = tf.sigmoid(forget_arg + forget_bias)
-                input_arg = tf.matmul(x, Wi) + tf.matmul(h, Ui)
-                input_gate = tf.sigmoid(input_arg + input_bias)
-                output_arg = tf.matmul(x, Wo) + tf.matmul(h, Uo)
-                output_gate = tf.sigmoid(output_arg + output_bias)
-                update_arg = tf.matmul(x, Wc) + tf.matmul(h, Uc)
-                state = forget_gate * c + input_gate * tf.tanh(update_arg + update_bias)
-                output = output_gate * tf.tanh(state)
-                return output, state
-            
             #
             self._initialization = tf.global_variables_initializer()
             
@@ -88,7 +86,7 @@ class lstm_graph(object):
             
             # Training:
             
-            # Unfold SRN.
+            # Unfold LSTM
             training_output = training_output_saved
             training_state = training_state_saved
             training_labels = []
@@ -97,7 +95,8 @@ class lstm_graph(object):
             for i in range(self._num_unfoldings):
                 training_input = self._training_data[i]
                 training_label = self._training_data[i+1]
-                training_output, training_state = lstm_cell(training_input, training_output, training_state)
+                training_output, training_state = self._lstm_cell(training_input, training_output, training_state, 
+                    Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
                 training_labels.append(training_label)
                 training_outputs.append(training_output)
                 optimize_ctr += 1
@@ -112,6 +111,8 @@ class lstm_graph(object):
                                           training_state_saved.assign(training_state)]):
                 logits = tf.nn.xw_plus_b(tf.concat(training_outputs, 0), W, W_bias)
                 labels = tf.concat(training_labels, 0)
+                
+                # Replace with hierarchical softmax in the future
                 self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                 
             # Optimizer.
@@ -128,15 +129,28 @@ class lstm_graph(object):
             self._reset_validation_state = tf.group(validation_output_saved.assign(tf.zeros([1, hidden_size])),
                                                     validation_state_saved.assign(tf.zeros([1, hidden_size])))
 
-            # Run SRN on validation data
-            validation_output, validation_state = lstm_cell(self._validation_input, validation_output_saved, 
-                                                            validation_state_saved)
+            # Run LSTM on validation data
+            validation_output, validation_state = self._lstm_cell(self._validation_input, validation_output_saved,
+                validation_state_saved, Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
             with tf.control_dependencies([validation_output_saved.assign(validation_output), 
                                           validation_state_saved.assign(validation_state)]):
                 logits = tf.nn.xw_plus_b(validation_output, W, W_bias)
 
-                # Validation prediction
+                # Validation prediction, replace with hierarchical softmax in the future
                 self._validation_prediction = tf.nn.softmax(logits)
+                
+    # LSTM cell definition:   .
+    def _lstm_cell(self, x, h, c, Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias):
+        forget_arg = tf.matmul(x, Wf) + tf.matmul(h, Uf)
+        forget_gate = tf.sigmoid(forget_arg + forget_bias)
+        input_arg = tf.matmul(x, Wi) + tf.matmul(h, Ui)
+        input_gate = tf.sigmoid(input_arg + input_bias)
+        output_arg = tf.matmul(x, Wo) + tf.matmul(h, Uo)
+        output_gate = tf.sigmoid(output_arg + output_bias)
+        update_arg = tf.matmul(x, Wc) + tf.matmul(h, Uc)
+        state = forget_gate * c + input_gate * tf.tanh(update_arg + update_bias)
+        output = output_gate * tf.tanh(state)
+        return output, state
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, optimization_frequency, clip_norm, num_epochs, summary_frequency,

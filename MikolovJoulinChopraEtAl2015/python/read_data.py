@@ -1,3 +1,12 @@
+# Structurally Contrained Recurrent Network (SCRN) Model
+#
+# This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
+# https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
+#
+# A read data function that reads data in a zip-file for feeding into the LSTM, SCRN, and SNN models.
+#
+# Stuart Hagler, 2017
+
 # usecase_flg = 1 for predicting letters
 #               2 for predicting words with fixed vocabulary size
 #               3 for predicting words with cutoff for infrequent words
