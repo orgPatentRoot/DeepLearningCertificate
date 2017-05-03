@@ -186,23 +186,23 @@ class srn_graph(object):
                 # Iterate over validation batches
                 validation_batches.reset_token_idx()
                 session.run(self._reset_validation_state)
-                validation_logprob = 0
+                validation_log_prob_sum = 0
                 for i in range(validation_size):
                     
                     # Get next validation batch
-                    validation_batches_next = validation_batches.next()
+                    validation_batch_next = validation_batches.next()
                     
                     # Validation
-                    validation_feed_dict[self._validation_input] = validation_batches_next[0]
-                    validation_batches_next_labels = validation_batches_next[1]
-                    validation_predictions = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
+                    validation_feed_dict[self._validation_input] = validation_batch_next[0]
+                    validation_batch_next_label = validation_batch_next[1]
+                    validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
-                    validation_logprob = validation_logprob + log_prob(validation_predictions, 
-                                                                       validation_batches_next_labels)
+                    validation_log_prob_sum = validation_log_prob_sum + log_prob(validation_prediction, 
+                                                                                 validation_batch_next_label)
                     
                 # 
-                perplexity = float(np.exp(validation_logprob / validation_size))
+                perplexity = float(2 ** (-validation_log_prob_sum / validation_size))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate

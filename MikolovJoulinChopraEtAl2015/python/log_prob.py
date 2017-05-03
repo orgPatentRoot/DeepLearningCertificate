@@ -8,9 +8,11 @@
 # Stuart Hagler, 2017
 
 # Imports
+from itertools import compress
 import numpy as np
 
-# Calculate the log-probability of the labels given predictions
-def log_prob(predictions, labels):
+# Calculate the log-probability of the label given predictions
+def log_prob(predictions, label):
     predictions[predictions < 1e-10] = 1e-10
-    return np.sum(np.multiply(labels, -np.log(predictions))) / labels.shape[0]
+    label_probability = [ predictions[i] for i in [ label > 0 ] ]
+    return np.log2(label_probability)
