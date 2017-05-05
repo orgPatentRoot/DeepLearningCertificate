@@ -37,7 +37,6 @@ class srn_graph(object):
             # Variable definitions:
 
             # Optimization variables
-            self._clip_norm = tf.placeholder(tf.float32)
             self._learning_rate = tf.placeholder(tf.float32)
             self._optimization_frequency = tf.placeholder(tf.int32)
 
@@ -46,7 +45,6 @@ class srn_graph(object):
 
             # Recurrent weights tensor and bias.
             R = tf.Variable(tf.truncated_normal([hidden_size, hidden_size], -0.1, 0.1))
-            hidden_bias = tf.Variable(tf.zeros([hidden_size]))
 
             # Output update tensor and bias.
             U = tf.Variable(tf.truncated_normal([hidden_size, vocabulary_size], -0.1, 0.1))
@@ -78,8 +76,7 @@ class srn_graph(object):
             for i in range(self._num_unfoldings):
                 training_input = self._training_data[i]
                 training_label = self._training_data[i+1]
-                training_output, training_hidden = self._srn_cell(training_input, training_hidden, A, R, hidden_bias, U,
-                                                                  output_bias)
+                training_output, training_hidden = self._srn_cell(training_input, training_hidden, A, R, U,output_bias)
                 training_labels.append(training_label)
                 training_outputs.append(training_output)
                 optimize_ctr += 1
@@ -88,8 +85,10 @@ class srn_graph(object):
                     labels = tf.concat(training_labels, 0)
                     self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                     gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-                    gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+                    #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
                     optimizer.apply_gradients(zip(gradients, variables))
+                    training_labels = []
+                    training_outputs = []
             with tf.control_dependencies([training_hidden_saved.assign(training_hidden)]):
                 logits = tf.concat(training_outputs, 0)
                 labels = tf.concat(training_labels, 0)
@@ -100,7 +99,7 @@ class srn_graph(object):
             # Optimizer.
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
             gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-            gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+            #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
     
             # Optimize parameters
             self._optimize = optimizer.apply_gradients(zip(gradients, variables))
@@ -112,7 +111,7 @@ class srn_graph(object):
 
             # Run SRN on validation data
             validation_output, validation_hidden = self._srn_cell(self._validation_input, validation_hidden_saved, A, R,
-                                                                  hidden_bias, U, output_bias)
+                                                                  U, output_bias)
             with tf.control_dependencies([validation_hidden_saved.assign(validation_hidden)]):
                 logits = validation_output
 
@@ -120,15 +119,15 @@ class srn_graph(object):
                 self._validation_prediction = tf.nn.softmax(logits)
                 
     # SRN cell definition:   .
-    def _srn_cell(self, x, h, A, R, hidden_bias, U, output_bias):
+    def _srn_cell(self, x, h, A, R, U, output_bias):
         hidden_arg = tf.matmul(x, A) + tf.matmul(h, R)
-        hidden = tf.sigmoid(hidden_arg + hidden_bias)
+        hidden = tf.sigmoid(hidden_arg)
         output_arg = tf.matmul(hidden, U)
         output = output_arg + output_bias
         return output, hidden
             
     # Optimization:
-    def optimization(self, learning_rate, learning_decay, optimization_frequency, clip_norm, num_epochs, summary_frequency,
+    def optimization(self, learning_rate, learning_decay, optimization_frequency, num_epochs, summary_frequency,
                      training_text, validation_text):
         
         training_size = len(training_text)
@@ -167,8 +166,7 @@ class srn_graph(object):
                     train_batches_next = training_batches.next()
                     batch_ctr += 1
 
-                    # Optimization
-                    training_feed_dict[self._clip_norm] = clip_norm
+                    # Optimizationm
                     training_feed_dict[self._learning_rate] = learning_rate
                     training_feed_dict[self._optimization_frequency] = optimization_frequency
                     for i in range(self._num_unfoldings + 1):

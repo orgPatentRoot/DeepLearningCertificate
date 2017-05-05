@@ -37,7 +37,6 @@ class lstm_graph(object):
             # Variable definitions:
             
             # Optimization variables
-            self._clip_norm = tf.placeholder(tf.float32)
             self._learning_rate = tf.placeholder(tf.float32)
             self._optimization_frequency = tf.placeholder(tf.int32)
 
@@ -105,8 +104,10 @@ class lstm_graph(object):
                     labels = tf.concat(training_labels, 0)
                     self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                     gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-                    gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+                    #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
                     optimizer.apply_gradients(zip(gradients, variables))
+                    training_labels = []
+                    training_outputs = []
             with tf.control_dependencies([training_output_saved.assign(training_output), 
                                           training_state_saved.assign(training_state)]):
                 logits = tf.nn.xw_plus_b(tf.concat(training_outputs, 0), W, W_bias)
@@ -118,7 +119,7 @@ class lstm_graph(object):
             # Optimizer.
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
             gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-            gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+            #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
     
             # Optimize parameters
             self._optimize = optimizer.apply_gradients(zip(gradients, variables))
@@ -153,7 +154,7 @@ class lstm_graph(object):
         return output, state
             
     # Optimization:
-    def optimization(self, learning_rate, learning_decay, optimization_frequency, clip_norm, num_epochs, summary_frequency,
+    def optimization(self, learning_rate, learning_decay, optimization_frequency, num_epochs, summary_frequency,
                      training_text, validation_text):
         
         training_size = len(training_text)
@@ -193,7 +194,6 @@ class lstm_graph(object):
                     batch_ctr += 1
 
                     # Optimization
-                    training_feed_dict[self._clip_norm] = clip_norm
                     training_feed_dict[self._learning_rate] = learning_rate
                     training_feed_dict[self._optimization_frequency] = optimization_frequency
                     for i in range(self._num_unfoldings + 1):
@@ -227,7 +227,7 @@ class lstm_graph(object):
                                                                                  validation_batch_next_label)
                 
                 #
-                perplexity = float(2 ** (-validation_log_prob / validation_size))
+                perplexity = float(2 ** (-validation_log_prob_sum / validation_size))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate

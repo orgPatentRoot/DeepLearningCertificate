@@ -11,6 +11,7 @@
 # Stuart Hagler, 2017
 
 # Imports
+import math
 import numpy as np
 import tensorflow as tf
 
@@ -34,9 +35,8 @@ class scrn_graph(object):
         with self._graph.as_default():
 
             # Variable definitions:
-            
+
             # Optimization variables
-            self._clip_norm = tf.placeholder(tf.float32)
             self._learning_rate = tf.placeholder(tf.float32)
             self._optimization_frequency = tf.placeholder(tf.int32)
             
@@ -51,7 +51,6 @@ class scrn_graph(object):
 
             # Recurrent weights tensor and bias.
             R = tf.Variable(tf.truncated_normal([hidden_size, hidden_size], -0.1, 0.1))
-            hidden_bias = tf.Variable(tf.zeros([hidden_size]))
 
             # Output update tensor and bias.
             U = tf.Variable(tf.truncated_normal([hidden_size, vocabulary_size], -0.1, 0.1))
@@ -74,13 +73,12 @@ class scrn_graph(object):
             self._initialization = tf.global_variables_initializer()
             
             # Reset training state
-            self._reset_training_state = tf.group(training_state_saved.assign(tf.zeros([batch_size, state_size])),
-                                                  training_hidden_saved.assign(tf.zeros([batch_size, hidden_size])))
-
+            self._reset_training_state = tf.group(training_hidden_saved.assign(tf.zeros([batch_size, hidden_size])),
+                                                  training_state_saved.assign(tf.zeros([batch_size, state_size])))
             
             # Training:
             
-            # Unfold SCRN
+            # Unfold SRN
             training_hidden = training_hidden_saved
             training_state = training_state_saved
             training_labels = []
@@ -89,8 +87,9 @@ class scrn_graph(object):
             for i in range(self._num_unfoldings):
                 training_input = self._training_data[i]
                 training_label = self._training_data[i+1]
-                training_output, training_state, training_hidden = self._scrn_cell(training_input,
-                    training_state, training_hidden, alpha, B, P, A, R, hidden_bias, U, V, output_bias)
+                training_output, training_hidden, training_state = self._scrn_cell(training_input, training_hidden,
+                                                                                   training_state, alpha, B, A, P, R,
+                                                                                   U, V, output_bias)
                 training_labels.append(training_label)
                 training_outputs.append(training_output)
                 optimize_ctr += 1
@@ -99,20 +98,21 @@ class scrn_graph(object):
                     labels = tf.concat(training_labels, 0)
                     self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                     gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-                    gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+                    #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
                     optimizer.apply_gradients(zip(gradients, variables))
-            with tf.control_dependencies([training_state_saved.assign(training_state), 
-                                          training_hidden_saved.assign(training_hidden)]):
+                    training_labels = []
+                    training_outputs = []
+            with tf.control_dependencies([training_hidden_saved.assign(training_hidden)]):
                 logits = tf.concat(training_outputs, 0)
                 labels = tf.concat(training_labels, 0)
                 
                 # Replace with hierarchical softmax in the future
-                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)) 
+                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                 
             # Optimizer.
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
             gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-            gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+            #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
     
             # Optimize parameters
             self._optimize = optimizer.apply_gradients(zip(gradients, variables))
@@ -120,31 +120,32 @@ class scrn_graph(object):
             # Validation:
     
             # Reset validation state
-            self._reset_validation_state = tf.group(validation_state_saved.assign(tf.zeros([1, state_size])),
-                                                    validation_hidden_saved.assign(tf.zeros([1, hidden_size])))
+            self._reset_validation_state = tf.group(validation_hidden_saved.assign(tf.zeros([1, hidden_size])),
+                                                    validation_state_saved.assign(tf.zeros([1, state_size])))
 
             # Run SRN on validation data
-            validation_output, validation_state, validation_hidden = self._scrn_cell(self._validation_input,
-                validation_state_saved, validation_hidden_saved,alpha, B, P, A, R, hidden_bias, U, V, output_bias)                                                                 
-            with tf.control_dependencies([validation_state_saved.assign(validation_state), 
-                                          validation_hidden_saved.assign(validation_hidden)]):
+            validation_output, validation_hidden, validation_state = self._scrn_cell(self._validation_input,
+                                                                                     validation_hidden_saved,
+                                                                                     validation_state_saved, alpha, B, A, P, R,
+                                                                                     U, V, output_bias)
+            with tf.control_dependencies([validation_hidden_saved.assign(validation_hidden)]):
                 logits = validation_output
 
-            # Validation prediction, replace with hierarchical softmax in the future
-            self._validation_prediction = tf.nn.softmax(logits)
+                # Validation prediction, replace with hierarchical softmax in the future
+                self._validation_prediction = tf.nn.softmax(logits)
                 
     # SCRN cell definition:   .
-    def _scrn_cell(self, x, s, h, alpha, B, P, A, R, hidden_bias, U, V, output_bias):
-        state_arg = alpha * s + (1-alpha) * tf.matmul(x, B)
+    def _scrn_cell(self, x, h, s, alpha, B, A, P, R, U, V, output_bias):
+        state_arg = (1 - alpha) * tf.matmul(x, B) + alpha * s
         state = state_arg
         hidden_arg = tf.matmul(state, P) + tf.matmul(x, A) + tf.matmul(h, R)
-        hidden = tf.sigmoid(hidden_arg + hidden_bias)
-        output_arg = tf.matmul(hidden, U) + tf.matmul(state, V)
+        hidden = tf.sigmoid(hidden_arg)
+        output_arg = tf.matmul(hidden, U) + tf.matmul(state, V) 
         output = output_arg + output_bias
-        return output, state, hidden
+        return output, hidden, state
             
     # Optimization:
-    def optimization(self, learning_rate, learning_decay, optimization_frequency, clip_norm, num_epochs, summary_frequency,
+    def optimization(self, learning_rate, learning_decay, optimization_frequency, num_epochs, summary_frequency,
                      training_text, validation_text):
         
         training_size = len(training_text)
@@ -183,8 +184,7 @@ class scrn_graph(object):
                     train_batches_next = training_batches.next()
                     batch_ctr += 1
 
-                    # Optimization
-                    training_feed_dict[self._clip_norm] = clip_norm
+                    # Optimizationm
                     training_feed_dict[self._learning_rate] = learning_rate
                     training_feed_dict[self._optimization_frequency] = optimization_frequency
                     for i in range(self._num_unfoldings + 1):
@@ -196,7 +196,7 @@ class scrn_graph(object):
                         cst = session.run(self._cost, feed_dict=training_feed_dict)
                         print('     Total Batches: %d  Current Batch: %d  Cost: %.2f' % 
                               (batch_ctr, batch+1, cst))
-                        
+                      
                 # Validation Step:
         
                 # Iterate over validation batches
