@@ -17,7 +17,7 @@ import collections
 import string
 
 # Generate dictionary of tokens for text elements and convert text to tokens
-def text_elements_to_tokens(usecase_flg, text_elements, vocabulary_size):
+def text_elements_to_tokens(usecase_flg, text_elements, word_frequency_cutoff):
     dictionary = dict()
     if usecase_flg == 1:
         vocabulary_size = len(string.ascii_lowercase) + 2
@@ -29,12 +29,6 @@ def text_elements_to_tokens(usecase_flg, text_elements, vocabulary_size):
             dictionary[letter] = len(dictionary)
         vocab_size = vocabulary_size
     elif usecase_flg == 2:
-        words = [['UNK', -1]]
-        words.extend(collections.Counter(text_elements).most_common(vocabulary_size - 1))
-        for word, _ in words:
-            dictionary[word] = len(dictionary)
-        vocab_size = vocabulary_size
-    elif usecase_flg == 3:
         words = [['UNK', -1]]
         words.extend(collections.Counter(text_elements).most_common(len(text_elements)))
         frequencies = [i[1] for i in words]
