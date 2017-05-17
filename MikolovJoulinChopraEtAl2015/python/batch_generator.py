@@ -40,12 +40,12 @@ class batch_generator(object):
         self._last_batch = self._next_batch()
         
         #
-        print('     Input Text Size: %d' % len(text))
-        print('     Cut Text Size: %d' % self._text_size)
-        print('     Subtext Size: %d' % self._sub_text_size)
-        print('     Dropped Text Size: %d' % self._dropped_text_size)
-        print('     Effective Batch Size: %d' % self._effective_batch_size)
-        print('     Number of Batches: %d' % self._num_batches)
+        print('          Input Text Size: %d' % len(text))
+        print('          Cut Text Size: %d' % self._text_size)
+        print('          Subtext Size: %d' % self._sub_text_size)
+        print('          Dropped Text Size: %d' % self._dropped_text_size)
+        print('          Effective Batch Size: %d' % self._effective_batch_size)
+        print('          Number of Batches: %d' % self._num_batches)
         
     def _next_batch(self):
         

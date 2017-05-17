@@ -23,7 +23,7 @@ from log_prob import log_prob
 class lstm_graph(object):
     
     #
-    def __init__(self, hidden_size, vocabulary_size, num_unfoldings, batch_size):
+    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, batch_size):
         
         #
         self._batch_size = batch_size
@@ -66,8 +66,11 @@ class lstm_graph(object):
             
             # Training data
             self._training_data = list()
-            for _ in range(num_unfoldings + 1):
-                self._training_data.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
+            for _ in range(num_gpus):
+                training_data_tmp = list()
+                for _ in range(num_unfoldings + 1):
+                    training_data_tmp.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
+                self._training_data.append(training_data_tmp)
             training_output_saved = tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False)
             training_state_saved = tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False)
             
@@ -92,8 +95,8 @@ class lstm_graph(object):
             training_outputs = []
             optimize_ctr = 0
             for i in range(self._num_unfoldings):
-                training_input = self._training_data[i]
-                training_label = self._training_data[i+1]
+                training_input = self._training_data[0][i]
+                training_label = self._training_data[0][i+1]
                 training_output, training_state = self._lstm_cell(training_input, training_output, training_state, 
                     Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
                 training_labels.append(training_label)
@@ -161,7 +164,11 @@ class lstm_graph(object):
         validation_size = len(validation_text)
         
         print('Training Batch Generator:')
-        training_batches = batch_generator(training_text, self._batch_size, self._num_unfoldings, self._vocabulary_size)
+        training_batches = []
+        for i in range(len(training_text)):
+            print('     Tower: %d' % i)
+            training_batches.append(batch_generator(training_text[i], self._batch_size,
+                                                    self._num_unfoldings,self._vocabulary_size))
         
         print('Validation Batch Generator:')
         validation_batches = batch_generator(validation_text, 1, 1, self._vocabulary_size)
@@ -185,19 +192,23 @@ class lstm_graph(object):
                 # Optimization Step:
 
                 # Iterate over training batches
-                training_batches.reset_token_idx()
+                for i in range(len(training_batches)):
+                    training_batches[i].reset_token_idx()
                 session.run(self._reset_training_state)
-                for batch in range(training_batches.num_batches()):
+                for batch in range(training_batches[0].num_batches()):
 
                     # Get next training batch
-                    train_batches_next = training_batches.next()
+                    training_batches_next = list()
+                    for i in range(len(training_batches)):
+                        training_batches_next.append(training_batches[i].next())
                     batch_ctr += 1
 
                     # Optimization
                     training_feed_dict[self._learning_rate] = learning_rate
                     training_feed_dict[self._optimization_frequency] = optimization_frequency
-                    for i in range(self._num_unfoldings + 1):
-                        training_feed_dict[self._training_data[i]] = train_batches_next[i]
+                    for i in range(len(training_batches)):
+                        for j in range(self._num_unfoldings + 1):
+                            training_feed_dict[self._training_data[i][j]] = training_batches_next[i][j]
                     session.run(self._optimize, feed_dict=training_feed_dict)
 
                     # Summarize current performance
