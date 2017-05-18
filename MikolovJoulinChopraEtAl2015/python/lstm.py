@@ -23,11 +23,13 @@ from log_prob import log_prob
 class lstm_graph(object):
     
     #
-    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, batch_size):
+    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, batch_size):
         
         #
         self._batch_size = batch_size
+        self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
+        self._optimization_frequency = optimization_frequency
         self._vocabulary_size = vocabulary_size
         
         #
@@ -38,7 +40,6 @@ class lstm_graph(object):
             
             # Optimization variables
             self._learning_rate = tf.placeholder(tf.float32)
-            self._optimization_frequency = tf.placeholder(tf.int32)
 
             # Forget gate input and output tensor and bias.
             Wf = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_size], -0.1, 0.1))
@@ -66,13 +67,15 @@ class lstm_graph(object):
             
             # Training data
             self._training_data = list()
+            self._training_output_saved = list()
+            self._training_state_saved = list()
             for _ in range(num_gpus):
                 training_data_tmp = list()
                 for _ in range(num_unfoldings + 1):
                     training_data_tmp.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
                 self._training_data.append(training_data_tmp)
-            training_output_saved = tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False)
-            training_state_saved = tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False)
+                self._training_output_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
+                self._training_state_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
             
             # Validation data
             self._validation_input = tf.placeholder(tf.float32, shape=[1, vocabulary_size])
@@ -82,49 +85,90 @@ class lstm_graph(object):
             #
             self._initialization = tf.global_variables_initializer()
             
-            # Reset training state
-            self._reset_training_state = tf.group(training_output_saved.assign(tf.zeros([batch_size, hidden_size])),
-                                                  training_state_saved.assign(tf.zeros([batch_size, hidden_size])))
+            # Reset training state (this is a kludge to get moving on testing the rest of the code)
+            if self._num_gpus == 1:
+                self._reset_training_state = \
+                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
+                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])))
+            elif self._num_gpus == 2:
+                self._reset_training_state = \
+                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
+                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])),
+                             self._training_output_saved[1].assign(tf.zeros([batch_size, hidden_size])),
+                             self._training_state_saved[1].assign(tf.zeros([batch_size, hidden_size])))  
             
             # Training:
             
             # Unfold LSTM
-            training_output = training_output_saved
-            training_state = training_state_saved
-            training_labels = []
-            training_outputs = []
-            optimize_ctr = 0
-            for i in range(self._num_unfoldings):
-                training_input = self._training_data[0][i]
-                training_label = self._training_data[0][i+1]
-                training_output, training_state = self._lstm_cell(training_input, training_output, training_state, 
-                    Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
-                training_labels.append(training_label)
-                training_outputs.append(training_output)
-                optimize_ctr += 1
-                if optimize_ctr < self._num_unfoldings and optimize_ctr % self._optimization_frequency == 0:
-                    logits = tf.nn.xw_plus_b(tf.concat(training_outputs, 0), W, W_bias)
-                    labels = tf.concat(training_labels, 0)
-                    self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-                    gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-                    #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
-                    optimizer.apply_gradients(zip(gradients, variables))
-                    training_labels = []
-                    training_outputs = []
-            with tf.control_dependencies([training_output_saved.assign(training_output), 
-                                          training_state_saved.assign(training_state)]):
-                logits = tf.nn.xw_plus_b(tf.concat(training_outputs, 0), W, W_bias)
-                labels = tf.concat(training_labels, 0)
+            
+            #
+            cost = list()
+            gradients = list()
+            labels = list()
+            logits = list()
+            training_input = list()
+            training_label = list()
+            training_labels = list()
+            training_output = list()
+            training_outputs = list()
+            training_state = list()
+            variables = list()
+            for _ in range(self._num_gpus):
+                cost.append([])
+                gradients.append([])
+                labels.append([])
+                logits.append([])
+                training_input.append([])
+                training_label.append([])
+                training_labels.append([])
+                training_outputs.append([])
+                variables.append([])
+            
+            #
+            optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
+            for i in range(self._num_unfoldings // self._optimization_frequency):
+                for tower in range(self._num_gpus):
+                    cost[tower] = []
+                    gradients[tower] = []
+                    labels[tower] = []
+                    logits[tower] = []
+                    training_input[tower] = []
+                    training_label[tower] = []
+                    training_labels[tower] = []
+                    training_outputs[tower] = []
+                    variables[tower] = []
+                training_output = self._training_output_saved
+                training_state = self._training_state_saved
+                for tower in range(self._num_gpus):
+                    with tf.device('/gpu:%d' % tower):
+                        for j in range(self._optimization_frequency):
+                            training_input[tower] = self._training_data[tower][i*self._optimization_frequency + j]
+                            training_label[tower] = self._training_data[tower][i*self._optimization_frequency + j + 1]
+                            training_output[tower], training_state[tower] = \
+                                self._lstm_cell(training_input[tower], training_output[tower], training_state[tower], Wf, Uf,
+                                                forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
+                            training_labels[tower].append(training_label[tower])
+                            training_outputs[tower].append(training_output[tower])
+                        logits[tower] = tf.nn.xw_plus_b(tf.concat(training_outputs[tower], 0), W, W_bias)
+                        labels[tower] = tf.concat(training_labels[tower], 0)
+                        
+                        # Replace with hierarchical softmax in the future
+                        cost[tower] = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels[tower],
+                                                                                             logits=logits[tower]))
+                        
+                        gradients[tower], variables[tower] = zip(*optimizer.compute_gradients(cost[tower]))
+                with tf.control_dependencies(self._set_training_saved(training_output, training_state)):
+                    if i < self._num_unfoldings // self._optimization_frequency - 1:
+                        optimizer.apply_gradients(zip(gradients[0], variables[0]))
+            with tf.control_dependencies(self._set_training_saved(training_output, training_state)):
+                logits = tf.nn.xw_plus_b(tf.concat(training_outputs[0], 0), W, W_bias)
+                labels = tf.concat(training_labels[0], 0)
                 
                 # Replace with hierarchical softmax in the future
                 self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
                 
-            # Optimizer.
-            optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
-            gradients, variables = zip(*optimizer.compute_gradients(self._cost))
-            #gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
-    
             # Optimize parameters
+            gradients, variables = zip(*optimizer.compute_gradients(self._cost))
             self._optimize = optimizer.apply_gradients(zip(gradients, variables))
                 
             # Validation:
@@ -155,21 +199,26 @@ class lstm_graph(object):
         state = forget_gate * c + input_gate * tf.tanh(update_arg + update_bias)
         output = output_gate * tf.tanh(state)
         return output, state
+    
+    def _set_training_saved(self, training_output, training_state):
+        for tower in range(self._num_gpus):
+            self._training_output_saved[tower] = training_output[tower]
+            self._training_state_saved[tower] = training_state[tower]
             
     # Optimization:
-    def optimization(self, learning_rate, learning_decay, optimization_frequency, num_epochs, summary_frequency,
-                     training_text, validation_text):
+    def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
         
-        training_size = len(training_text)
         validation_size = len(validation_text)
-        
+
+        # Generate training batches
         print('Training Batch Generator:')
         training_batches = []
-        for i in range(len(training_text)):
-            print('     Tower: %d' % i)
-            training_batches.append(batch_generator(training_text[i], self._batch_size,
+        for tower in range(self._num_gpus):
+            print('     Tower: %d' % tower)
+            training_batches.append(batch_generator(training_text[tower], self._batch_size,
                                                     self._num_unfoldings,self._vocabulary_size))
         
+        # Generate validation batches
         print('Validation Batch Generator:')
         validation_batches = batch_generator(validation_text, 1, 1, self._vocabulary_size)
         
@@ -192,23 +241,22 @@ class lstm_graph(object):
                 # Optimization Step:
 
                 # Iterate over training batches
-                for i in range(len(training_batches)):
-                    training_batches[i].reset_token_idx()
+                for tower in range(self._num_gpus):
+                    training_batches[tower].reset_token_idx()
                 session.run(self._reset_training_state)
                 for batch in range(training_batches[0].num_batches()):
 
                     # Get next training batch
                     training_batches_next = list()
-                    for i in range(len(training_batches)):
-                        training_batches_next.append(training_batches[i].next())
+                    for tower in range(self._num_gpus):
+                        training_batches_next.append(training_batches[tower].next())
                     batch_ctr += 1
 
-                    # Optimization
+                    # Optimizationm
                     training_feed_dict[self._learning_rate] = learning_rate
-                    training_feed_dict[self._optimization_frequency] = optimization_frequency
-                    for i in range(len(training_batches)):
-                        for j in range(self._num_unfoldings + 1):
-                            training_feed_dict[self._training_data[i][j]] = training_batches_next[i][j]
+                    for tower in range(self._num_gpus):
+                        for i in range(self._num_unfoldings + 1):
+                            training_feed_dict[self._training_data[tower][i]] = training_batches_next[tower][i]
                     session.run(self._optimize, feed_dict=training_feed_dict)
 
                     # Summarize current performance
@@ -216,7 +264,7 @@ class lstm_graph(object):
                         cst = session.run(self._cost, feed_dict=training_feed_dict)
                         print('     Total Batches: %d  Current Batch: %d  Cost: %.2f' % 
                               (batch_ctr, batch+1, cst))
-                        
+                      
                 # Validation Step:
         
                 # Iterate over validation batches
@@ -236,8 +284,8 @@ class lstm_graph(object):
                     # Summarize current performance
                     validation_log_prob_sum = validation_log_prob_sum + log_prob(validation_prediction, 
                                                                                  validation_batch_next_label)
-                
-                #
+                    
+                # 
                 perplexity = float(2 ** (-validation_log_prob_sum / validation_size))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
