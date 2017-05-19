@@ -3,7 +3,7 @@
 # This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
 # https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
 #
-# The batch generator class that is used to feed the data to the LSTM, SCRN, and SNN models.
+# The batch generator class that is used to feed the data to the LSTM, SCRN, and SRN models.
 #
 # Stuart Hagler, 2017
 

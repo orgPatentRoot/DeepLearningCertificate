@@ -4,13 +4,12 @@
 # https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
 #
 # Functions to translate between text elements (raw data) and tokens (data fed into the models) for the LSTM, SCRN, 
-# and SNN models.
+# and SRN models.
 #
 # Stuart Hagler, 2017
 
 # usecase_flg = 1 for predicting letters
-#               2 for predicting words with fixed vocabulary size
-#               3 for predicting words with cutoff for infrequent words
+#               2 for predicting words with cutoff for infrequent words
 
 # Imports
 import collections
