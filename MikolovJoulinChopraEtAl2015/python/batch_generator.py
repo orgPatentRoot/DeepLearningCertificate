@@ -3,7 +3,7 @@
 # This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
 # https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
 #
-# The batch generator class that is used to feed the data to the LSTM, SCRN, and SNN models.
+# The batch generator class that is used to feed the data to the LSTM, SCRN, and SRN models.
 #
 # Stuart Hagler, 2017
 
@@ -40,12 +40,12 @@ class batch_generator(object):
         self._last_batch = self._next_batch()
         
         #
-        print('     Input Text Size: %d' % len(text))
-        print('     Cut Text Size: %d' % self._text_size)
-        print('     Subtext Size: %d' % self._sub_text_size)
-        print('     Dropped Text Size: %d' % self._dropped_text_size)
-        print('     Effective Batch Size: %d' % self._effective_batch_size)
-        print('     Number of Batches: %d' % self._num_batches)
+        print('          Input Text Size: %d' % len(text))
+        print('          Cut Text Size: %d' % self._text_size)
+        print('          Subtext Size: %d' % self._sub_text_size)
+        print('          Dropped Text Size: %d' % self._dropped_text_size)
+        print('          Effective Batch Size: %d' % self._effective_batch_size)
+        print('          Number of Batches: %d' % self._num_batches)
         
     def _next_batch(self):
         
