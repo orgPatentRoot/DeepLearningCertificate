@@ -5,8 +5,7 @@
 #
 # This code fails to implement hierarchical softmax at this time as Tensorflow does not appear to include an
 # implementation.  Hierarchical softmax can be included at a future date when hierarchical softmax is available 
-# for Tensorflow or by modifying the code to run in Keras which appears to have an implementation of hierarchical
-# softmax.
+# for Tensorflow.
 #
 # Stuart Hagler, 2017
 
@@ -78,7 +77,9 @@ class lstm_graph(object):
                 self._training_state_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
             
             # Validation data
-            self._validation_input = tf.placeholder(tf.float32, shape=[1, vocabulary_size])
+            self._validation_input = list()
+            for _ in range(self._num_gpus):
+                self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
             validation_output_saved = tf.Variable(tf.zeros([1, hidden_size]))
             validation_state_saved = tf.Variable(tf.zeros([1, hidden_size]))
             
@@ -162,7 +163,7 @@ class lstm_graph(object):
                                                     validation_state_saved.assign(tf.zeros([1, hidden_size])))
 
             # Run LSTM on validation data
-            validation_output, validation_state = self._lstm_cell(self._validation_input, validation_output_saved,
+            validation_output, validation_state = self._lstm_cell(self._validation_input[0], validation_output_saved,
                 validation_state_saved, Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
             with tf.control_dependencies([validation_output_saved.assign(validation_output), 
                                           validation_state_saved.assign(validation_state)]):
@@ -184,6 +185,7 @@ class lstm_graph(object):
         output = output_gate * tf.tanh(state)
         return output, state
     
+    #
     def _set_training_saved(self, training_output, training_state):
         for tower in range(self._num_gpus):
             self._training_output_saved[tower] = training_output[tower]
@@ -191,8 +193,6 @@ class lstm_graph(object):
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
-        
-        validation_size = len(validation_text)
 
         # Generate training batches
         print('Training Batch Generator:')
@@ -204,13 +204,16 @@ class lstm_graph(object):
         
         # Generate validation batches
         print('Validation Batch Generator:')
-        validation_batches = batch_generator(validation_text, 1, 1, self._vocabulary_size)
+        validation_batches = []
+        for tower in range(self._num_gpus):
+            print('     Tower: %d' % tower)
+            validation_batches.append(batch_generator(validation_text[tower], 1, 1, self._vocabulary_size))
         
+        # Training loop
         batch_ctr = 0
         epoch_ctr = 0
         training_feed_dict = dict()
         validation_feed_dict = dict()
-        
         with tf.Session(graph=self._graph) as session:
         
             session.run(self._initialization)
@@ -222,7 +225,7 @@ class lstm_graph(object):
                 # Display the learning rate for this epoch
                 print('Epoch: %d  Learning Rate: %.2f' % (epoch+1, learning_rate))
 
-                # Optimization Step:
+                # Training Step:
 
                 # Iterate over training batches
                 for tower in range(self._num_gpus):
@@ -252,17 +255,21 @@ class lstm_graph(object):
                 # Validation Step:
         
                 # Iterate over validation batches
-                validation_batches.reset_token_idx()
+                for tower in range(self._num_gpus):
+                    validation_batches[tower].reset_token_idx()
                 session.run(self._reset_validation_state)
                 validation_log_prob_sum = 0
-                for i in range(validation_size):
+                for _ in range(validation_batches[0].num_batches()):
                     
                     # Get next validation batch
-                    validation_batch_next = validation_batches.next()
+                    validation_batches_next = list()
+                    for tower in range(self._num_gpus):
+                        validation_batches_next.append(validation_batches[tower].next())
                     
                     # Validation
-                    validation_feed_dict[self._validation_input] = validation_batch_next[0]
-                    validation_batch_next_label = validation_batch_next[1]
+                    for tower in range(self._num_gpus):
+                        validation_feed_dict[self._validation_input[tower]] = validation_batches_next[tower][0]
+                    validation_batch_next_label = validation_batches_next[0][1]
                     validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
@@ -270,7 +277,7 @@ class lstm_graph(object):
                                                                                  validation_batch_next_label)
                     
                 # 
-                perplexity = float(2 ** (-validation_log_prob_sum / validation_size))
+                perplexity = float(2 ** (-validation_log_prob_sum / validation_batches[0].num_batches()))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate
