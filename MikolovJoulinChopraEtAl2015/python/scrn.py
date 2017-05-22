@@ -5,7 +5,8 @@
 #
 # This code fails to implement hierarchical softmax at this time as Tensorflow does not appear to include an
 # implementation.  Hierarchical softmax can be included at a future date when hierarchical softmax is available 
-# for Tensorflow.
+# for Tensorflow or by modifying the code to run in Keras which appears to have an implementation of hierarchical
+# softmax.
 #
 # Stuart Hagler, 2017
 
@@ -72,10 +73,12 @@ class scrn_graph(object):
                         
             # Validation data
             self._validation_input = list()
+            self._validation_hidden_saved = list()
+            self._validation_state_saved = list()
             for _ in range(self._num_gpus):
                 self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
-            validation_hidden_saved = tf.Variable(tf.zeros([1, hidden_size]))
-            validation_state_saved = tf.Variable(tf.zeros([1, state_size]))
+                self._validation_hidden_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
+                self._validation_state_saved.append(tf.Variable(tf.zeros([1, state_size])))
             
             #
             self._initialization = tf.global_variables_initializer()
@@ -155,17 +158,26 @@ class scrn_graph(object):
                 
             # Validation:
     
-            self._reset_validation_state = tf.group(validation_hidden_saved.assign(tf.zeros([1, hidden_size])),
-                                                    validation_state_saved.assign(tf.zeros([1, state_size])))
+            # Reset validation state (this is a kludge to get moving on testing the rest of the code)
+            if self._num_gpus == 1:
+                self._reset_validation_state = \
+                    tf.group(self._validation_hidden_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[0].assign(tf.zeros([1, state_size])))
+            elif self._num_gpus == 2:
+                self._reset_validation_state = \
+                    tf.group(self._validation_hidden_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[0].assign(tf.zeros([1, state_size])),
+                             self._validation_hidden_saved[1].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[1].assign(tf.zeros([1, state_size])))  
  
 
             # Run SRN on validation data
             validation_output, validation_hidden, validation_state = self._scrn_cell(self._validation_input[0],
-                                                                                     validation_hidden_saved,
-                                                                                     validation_state_saved, alpha, B, A, P, R,
-                                                                                     U, V, output_bias)
-            with tf.control_dependencies([validation_hidden_saved.assign(validation_hidden), 
-                                          validation_state_saved.assign(validation_state)]):
+                                                                                     self._validation_hidden_saved[0],
+                                                                                     self._validation_state_saved[0], alpha, 
+                                                                                     B, A, P, R, U, V, output_bias)
+            with tf.control_dependencies([self._validation_hidden_saved[0].assign(validation_hidden), 
+                                          self._validation_state_saved[0].assign(validation_state)]):
                 logits = validation_output
 
                 # Validation prediction, replace with hierarchical softmax in the future
@@ -186,6 +198,12 @@ class scrn_graph(object):
         for tower in range(self._num_gpus):
             self._training_hidden_saved[tower] = training_hidden[tower]
             self._training_state_saved[tower] = training_state[tower]
+            
+    #
+    def _set_validation_saved(self, validation_hidden, validation_state):
+        for tower in range(self._num_gpus):
+            self._validation_hidden_saved[tower] = validation_hidden[tower]
+            self._validation_state_saved[tower] = validation_state[tower]
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):

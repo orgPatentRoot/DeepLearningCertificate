@@ -75,13 +75,15 @@ class lstm_graph(object):
                 self._training_data.append(training_data_tmp)
                 self._training_output_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
                 self._training_state_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
-            
+                
             # Validation data
             self._validation_input = list()
+            self._validation_output_saved = list()
+            self._validation_state_saved = list()
             for _ in range(self._num_gpus):
                 self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
-            validation_output_saved = tf.Variable(tf.zeros([1, hidden_size]))
-            validation_state_saved = tf.Variable(tf.zeros([1, hidden_size]))
+                self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
+                self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
             
             #
             self._initialization = tf.global_variables_initializer()
@@ -158,15 +160,24 @@ class lstm_graph(object):
                 
             # Validation:
     
-            # Reset validation state
-            self._reset_validation_state = tf.group(validation_output_saved.assign(tf.zeros([1, hidden_size])),
-                                                    validation_state_saved.assign(tf.zeros([1, hidden_size])))
+            # Reset validation state (this is a kludge to get moving on testing the rest of the code)
+            if self._num_gpus == 1:
+                self._reset_validation_state = \
+                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])))
+            elif self._num_gpus == 2:
+                self._reset_validation_state = \
+                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_output_saved[1].assign(tf.zeros([1, hidden_size])),
+                             self._validation_state_saved[1].assign(tf.zeros([1, hidden_size])))
 
             # Run LSTM on validation data
-            validation_output, validation_state = self._lstm_cell(self._validation_input[0], validation_output_saved,
-                validation_state_saved, Wf, Uf, forget_bias, Wi, Ui, input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
-            with tf.control_dependencies([validation_output_saved.assign(validation_output), 
-                                          validation_state_saved.assign(validation_state)]):
+            validation_output, validation_state = self._lstm_cell(self._validation_input[0], self._validation_output_saved[0],
+                                                                  self._validation_state_saved[0], Wf, Uf, forget_bias, Wi, Ui,
+                                                                  input_bias, Wo, Uo, output_bias, Wc, Uc, update_bias)
+            with tf.control_dependencies([self._validation_output_saved[0].assign(validation_output), 
+                                          self._validation_state_saved[0].assign(validation_state)]):
                 logits = tf.nn.xw_plus_b(validation_output, W, W_bias)
 
                 # Validation prediction, replace with hierarchical softmax in the future
@@ -190,6 +201,12 @@ class lstm_graph(object):
         for tower in range(self._num_gpus):
             self._training_output_saved[tower] = training_output[tower]
             self._training_state_saved[tower] = training_state[tower]
+            
+    #
+    def _set_validation_saved(self, validation_output, validation_state):
+        for tower in range(self._num_gpus):
+            self._validation_output_saved[tower] = validation_output[tower]
+            self._validation_state_saved[tower] = validation_state[tower]
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):

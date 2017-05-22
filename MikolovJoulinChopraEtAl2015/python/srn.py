@@ -62,9 +62,10 @@ class srn_graph(object):
             
             # Validation data
             self._validation_input = list()
+            self._validation_hidden_saved = list()
             for _ in range(self._num_gpus):
                 self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
-            validation_hidden_saved = tf.Variable(tf.zeros([1, hidden_size]))
+                self._validation_hidden_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
             
             #
             self._initialization = tf.global_variables_initializer()
@@ -137,13 +138,19 @@ class srn_graph(object):
                     
             # Validation:
     
-            # Reset validation state
-            self._reset_validation_state = tf.group(validation_hidden_saved.assign(tf.zeros([1, hidden_size])))
+            # Reset validation state (this is a kludge to get moving on testing the rest of the code)
+            if self._num_gpus == 1:
+                self._reset_validation_state = \
+                    tf.group(self._validation_hidden_saved[0].assign(tf.zeros([1, hidden_size])))
+            elif self._num_gpus == 2:
+                self._reset_validation_state = \
+                    tf.group(self._validation_hidden_saved[0].assign(tf.zeros([1, hidden_size])),
+                             self._validation_hidden_saved[1].assign(tf.zeros([1, hidden_size]))) 
 
             # Run SRN on validation data
-            validation_output, validation_hidden = self._srn_cell(self._validation_input[0], validation_hidden_saved, A, R,
-                                                                  U, output_bias)
-            with tf.control_dependencies([validation_hidden_saved.assign(validation_hidden)]):
+            validation_output, validation_hidden = self._srn_cell(self._validation_input[0], 
+                                                                  self._validation_hidden_saved[0], A, R, U, output_bias)
+            with tf.control_dependencies([self._validation_hidden_saved[0].assign(validation_hidden)]):
                 logits = validation_output
 
                 # Validation prediction, replace with hierarchical softmax in the future
@@ -161,6 +168,11 @@ class srn_graph(object):
     def _set_training_saved(self, training_hidden):
         for tower in range(self._num_gpus):
             self._training_hidden_saved[tower] = training_hidden[tower]
+            
+    #
+    def _set_validation_saved(self, validation_hidden):
+        for tower in range(self._num_gpus):
+            self._validation_hidden_saved[tower] = validation_hidden[tower]
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
