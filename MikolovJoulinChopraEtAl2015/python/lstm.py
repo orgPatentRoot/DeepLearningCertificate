@@ -155,15 +155,18 @@ class lstm_graph(object):
                              self._validation_state_saved[1].assign(tf.zeros([1, hidden_size])))
 
             # Run LSTM on validation data
-            output = self._validation_output_saved[0]
-            state = self._validation_state_saved[0]
-            validation_output, validation_state = self._lstm_cell(self._validation_input[0], output, state)
-            with tf.control_dependencies([self._validation_output_saved[0].assign(validation_output), 
-                                          self._validation_state_saved[0].assign(validation_state)]):
-                logits = tf.nn.xw_plus_b(validation_output, self._W, self._W_bias)
+            validation_outputs = []
+            for tower in range(self._num_gpus):
+                validation_outputs.append([])
+                with tf.device('/gpu:%d' % tower):
+                    with tf.name_scope('tower_%d' % tower) as scope:
+                        validation_outputs[tower] = self._validation_tower(tower)
+                        tf.get_variable_scope().reuse_variables()
+            
+            logits = tf.nn.xw_plus_b(validation_outputs[0], self._W, self._W_bias)
 
-                # Validation prediction, replace with hierarchical softmax in the future
-                self._validation_prediction = tf.nn.softmax(logits)
+            # Validation prediction, replace with hierarchical softmax in the future
+            self._validation_prediction = tf.nn.softmax(logits)
                 
     # LSTM cell definition:   .
     def _lstm_cell(self, x, h, c):
@@ -199,6 +202,22 @@ class lstm_graph(object):
         with tf.control_dependencies([self._training_output_saved[tower].assign(output), 
                                       self._training_state_saved[tower].assign(state)]):
             return outputs, labels
+        
+    #
+    def _validation_tower(self, tower):
+        
+        #
+        output = self._validation_output_saved[tower]
+        state = self._validation_state_saved[tower]
+        
+        #
+        x = self._validation_input[tower]
+        output, state = self._lstm_cell(x, output, state)
+            
+        #
+        with tf.control_dependencies([self._validation_output_saved[tower].assign(output), 
+                                      self._validation_state_saved[tower].assign(state)]):
+            return output
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):

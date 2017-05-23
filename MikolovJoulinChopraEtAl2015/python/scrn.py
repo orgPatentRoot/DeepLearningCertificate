@@ -98,7 +98,7 @@ class scrn_graph(object):
             
             # Training:
             
-            # Unfold SCRN   
+            # Unfold SCRN
 
             #
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
@@ -152,15 +152,18 @@ class scrn_graph(object):
  
 
             # Run SCRN on validation data
-            hidden = self._validation_hidden_saved[0]
-            state = self._validation_state_saved[0]
-            validation_output, hidden, state = self._scrn_cell(self._validation_input[0], hidden, state)
-            with tf.control_dependencies([self._validation_hidden_saved[0].assign(hidden), 
-                                          self._validation_state_saved[0].assign(state)]):
-                logits = validation_output
+            validation_outputs = []
+            for tower in range(self._num_gpus):
+                validation_outputs.append([])
+                with tf.device('/gpu:%d' % tower):
+                    with tf.name_scope('tower_%d' % tower) as scope:
+                        validation_outputs[tower] = self._validation_tower(tower)
+                        tf.get_variable_scope().reuse_variables()
+            
+            logits = validation_outputs[0]
 
-                # Validation prediction, replace with hierarchical softmax in the future
-                self._validation_prediction = tf.nn.softmax(logits)
+            # Validation prediction, replace with hierarchical softmax in the future
+            self._validation_prediction = tf.nn.softmax(logits)
                 
     # SCRN cell definition:   .
     def _scrn_cell(self, x, h, s):
@@ -193,6 +196,22 @@ class scrn_graph(object):
         with tf.control_dependencies([self._training_hidden_saved[tower].assign(hidden), 
                                       self._training_state_saved[tower].assign(state)]):
             return outputs, labels
+        
+    #
+    def _validation_tower(self, tower):
+        
+        #
+        hidden = self._validation_hidden_saved[tower]
+        state = self._validation_state_saved[tower]
+        
+        #
+        x = self._validation_input[tower]
+        output, hidden, state = self._scrn_cell(x, hidden, state)
+            
+        #
+        with tf.control_dependencies([self._validation_hidden_saved[tower].assign(hidden), 
+                                      self._validation_state_saved[tower].assign(state)]):
+            return output
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
