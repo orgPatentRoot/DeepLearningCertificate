@@ -1,4 +1,4 @@
-# Implementation of "End to End Memory Networks" [https://arxiv.org/abs/1503.08895] for Wiki reading dataset
+# Implementation of "Attentive Reader Model" [https://arxiv.org/abs/1506.03340] for Wiki reading dataset
 import os
 import sys
 import json
@@ -86,68 +86,50 @@ print('Query max length:', query_length)
 
 # Embed the story sequence
 story = Input((story_length,),dtype='int32')
-print("story:",story.shape)
 encoder = Sequential()
 encoder.add(Embedding(input_dim=vocab_size,output_dim=embedding_dim))
 encoder.add(Dropout(0.3))
 encoded_story = encoder(story)
-print("encoded_story:",encoded_story.shape)
+# Use the embedded story to lstm forward
 story_lstm_forward = LSTM(lstm_dim,return_sequences = True)(encoded_story)
 story_lstm_forward = Dropout(0.3)(story_lstm_forward)
-print("story_lstm_forward:",story_lstm_forward.shape)
+# Use the embedded story to lstm backward
 story_lstm_backward = LSTM(lstm_dim,return_sequences = True,go_backwards=True)(encoded_story)
 story_lstm_backward = Dropout(0.3)(story_lstm_backward)
-print("story_lstm_backward:",story_lstm_backward.shape)
+# Concactenate both forward and backward
 yd = concatenate([story_lstm_forward, story_lstm_backward])
-print("yd:",yd.shape)
 story_dense = TimeDistributed(Dense(2*lstm_dim))(yd)
-print("story_dense:",story_dense.shape)
 
 # Embed the question sequence
 question = Input((query_length,))
-print("question:",question.shape)
 encoder = Sequential()
 encoder.add(Embedding(input_dim=vocab_size,output_dim=embedding_dim,input_length=query_length))
 encoder.add(Dropout(0.3))
 encoded_question = encoder(question)
-print("encoded_question:",encoded_question.shape)
+# Use the embedded question to lstm forward
 query_lstm_forward = LSTM(lstm_dim)(encoded_question)
 query_lstm_forward = Dropout(0.3)(query_lstm_forward)
-print("query_lstm_forward:",query_lstm_forward.shape)
+# Use the embedded question to lstm backward
 query_lstm_backward = LSTM(lstm_dim,go_backwards=True)(encoded_question)
 query_lstm_backward = Dropout(0.3)(query_lstm_backward)
-print("query_lstm_backward:",query_lstm_backward.shape)
+# Concactenate both forward and backward
 u = concatenate([query_lstm_forward, query_lstm_backward])
-print("u:",u.shape)
+# Stretch it to match story length dimension
 u_rpt = RepeatVector(story_length)(u)
-print("u_rpt:",u_rpt.shape)
 query_dense = TimeDistributed(Dense(2*lstm_dim))(u_rpt)
-print("query_dense:",query_dense.shape)
-
+# Sum up story and query
 story_query_sum = add([story_dense, query_dense])
-print("story_query_sum:",story_query_sum.shape)
 m = Activation('tanh')(story_query_sum)
-print("m:",m.shape)
 w_m = TimeDistributed(Dense(1))(m)
-print("w_m:",w_m.shape)
 w_m_flat = Flatten()(w_m)
-print("w_m_flat:",w_m_flat.shape)
 s = Activation('softmax')(w_m_flat)
 s = Reshape((story_length,1))(s)
-print("s:",s.shape)
-# r = K.batch_dot(s, yd, axes=(1,1))
 r = Flatten()(dot([s, yd],axes=(1,1)))
-print("r:",r.shape)
 g_r = Dense(embedding_dim)(r)
-print("g_r:",g_r.shape)
 g_u = Dense(embedding_dim)(u)
-print("g_u:",g_u.shape)
 g_r_plus_g_u = add([g_r, g_u])
-print("g_r_plus_g_u:",g_r_plus_g_u.shape)
 g_d_q = Activation('tanh')(g_r_plus_g_u)
-print("g_d_q:",g_d_q.shape)
 answer = Dense(vocab_size, activation='softmax')(g_d_q)
-print("answer:",answer.shape)
 # Model everything together
 model = Model([story, question], answer)
 model.compile(optimizer='RMSprop', loss='categorical_crossentropy',metrics=['accuracy'])
