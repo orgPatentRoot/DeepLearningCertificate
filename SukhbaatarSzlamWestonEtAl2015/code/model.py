@@ -39,15 +39,15 @@ def build_vocab(data):
 		vocab |= set(story + q + answer)
 	return sorted(vocab)
 		
-filename = "../data/wiki/test/test-00000-of-00015.json"
+filename = "../data/wiki/test/filtered-test-00000-of-00015.json"
 data = []
-no_lines = 1000 if len(sys.argv)==1 else int(sys.argv[1]) 
+no_lines = 100 if len(sys.argv)==1 else int(sys.argv[1]) 
 steps = 10
 with open(filename) as r:
 	i = 1
 	for line in r:
 		line = json.loads(line)
-		data.append((line["string_sequence"],line["question_string_sequence"],line["raw_answers"]))
+		data.append((" ".join(line["string_sequence"]),line["question_string_sequence"],line["raw_answers"]))
 		if i > no_lines:
 			break
 		else:
@@ -67,6 +67,7 @@ print('Story max length:', story_length)
 print('Query max length:', query_length)
 print('Data - [story, query, answer]:')
 print('['," ".join(train_data[0][0]),", "," ".join(train_data[0][1]),", "," ".join(train_data[0][2]),"]")
+exit()
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
 # Embed the story sequence into m & c
 story = Input((story_length,),dtype='int32')
@@ -94,6 +95,7 @@ answer = Activation('softmax')(answer)
 # Model everything together
 model = Model([story, question], answer)
 model.compile(optimizer='sgd', loss='categorical_crossentropy',metrics=['accuracy'])
+print(model.count_params())
 # Train
 model.fit_generator(data_generator(len(train_data)/steps,train_data,word_idx,story_length,query_length), 
 			steps_per_epoch=steps, 
