@@ -139,7 +139,7 @@ class srn_graph(object):
                         validation_outputs[tower] = self._validation_tower(tower)
                         tf.get_variable_scope().reuse_variables()
             
-            logits = validation_outputs[0]
+            logits = validation_outputs
 
             # Validation prediction, replace with hierarchical softmax in the future
             self._validation_prediction = tf.nn.softmax(logits)
@@ -233,7 +233,7 @@ class srn_graph(object):
                         training_batches_next.append(training_batches[tower].next())
                     batch_ctr += 1
 
-                    # Optimizationm
+                    # Optimization
                     training_feed_dict[self._learning_rate] = learning_rate
                     for tower in range(self._num_gpus):
                         for i in range(self._num_unfoldings + 1):
@@ -262,17 +262,19 @@ class srn_graph(object):
                         validation_batches_next.append(validation_batches[tower].next())
                     
                     # Validation
+                    validation_batch_next_label = list()
                     for tower in range(self._num_gpus):
                         validation_feed_dict[self._validation_input[tower]] = validation_batches_next[tower][0]
-                    validation_batch_next_label = validation_batches_next[0][1]
+                        validation_batch_next_label.append(validation_batches_next[tower][1])
                     validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
-                    validation_log_prob_sum = validation_log_prob_sum + log_prob(validation_prediction, 
-                                                                                 validation_batch_next_label)
+                    for tower in range(self._num_gpus):
+                        validation_log_prob_sum = validation_log_prob_sum + \
+                            log_prob(validation_prediction[tower], validation_batch_next_label[tower])
                     
                 # 
-                perplexity = float(2 ** (-validation_log_prob_sum / validation_batches[0].num_batches()))
+                perplexity = float(2 ** (-validation_log_prob_sum / (self._num_gpus*validation_batches[0].num_batches())))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate
