@@ -88,17 +88,11 @@ class lstm_graph(object):
             #
             self._initialization = tf.global_variables_initializer()
             
-            # Reset training state (this is a kludge to get moving on testing the rest of the code)
-            if self._num_gpus == 1:
-                self._reset_training_state = \
-                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])))
-            elif self._num_gpus == 2:
-                self._reset_training_state = \
-                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_output_saved[1].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[1].assign(tf.zeros([batch_size, hidden_size])))
+            # Reset training state
+            self._reset_training_state = \
+                [ tf.group(self._training_output_saved[tower].assign(tf.zeros([batch_size, hidden_size])),
+                           self._training_state_saved[tower].assign(tf.zeros([batch_size, hidden_size]))) \
+                  for tower in range(self._num_gpus) ]
                     
             # Training:
             
@@ -142,17 +136,11 @@ class lstm_graph(object):
                 
             # Validation:
     
-            # Reset validation state (this is a kludge to get moving on testing the rest of the code)
-            if self._num_gpus == 1:
-                self._reset_validation_state = \
-                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])))
-            elif self._num_gpus == 2:
-                self._reset_validation_state = \
-                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_output_saved[1].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[1].assign(tf.zeros([1, hidden_size])))
+            # Reset validation state
+            self._reset_validation_state = \
+                [ tf.group(self._validation_output_saved[tower].assign(tf.zeros([1, hidden_size])),
+                           self._validation_state_saved[tower].assign(tf.zeros([1, hidden_size]))) \
+                  for tower in range(self._num_gpus) ]
 
             # Run LSTM on validation data
             validation_outputs = []
