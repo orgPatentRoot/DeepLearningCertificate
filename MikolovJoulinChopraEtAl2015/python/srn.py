@@ -22,12 +22,14 @@ from log_prob import log_prob
 class srn_graph(object):
     
     #
-    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, batch_size):
+    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, 
+                 batch_size, num_validation_unfoldings):
         
         #
         self._batch_size = batch_size
         self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
+        self._num_validation_unfoldings = num_validation_unfoldings
         self._optimization_frequency = optimization_frequency
         self._vocabulary_size = vocabulary_size
         
@@ -51,20 +53,23 @@ class srn_graph(object):
             self._output_bias = tf.Variable(tf.zeros([vocabulary_size]))
             
             # Training data
-            self._training_data = list()
-            self._training_hidden_saved = list()
+            self._training_data = []
+            self._training_hidden_saved = []
             for _ in range(num_gpus):
-                training_data_tmp = list()
+                training_data_tmp = []
                 for _ in range(num_unfoldings + 1):
                     training_data_tmp.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
                 self._training_data.append(training_data_tmp)
                 self._training_hidden_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
             
             # Validation data
-            self._validation_input = list()
-            self._validation_hidden_saved = list()
+            self._validation_input = []
+            self._validation_hidden_saved = []
             for _ in range(self._num_gpus):
-                self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
+                validation_input_tmp = []
+                for _ in range(num_validation_unfoldings):
+                    validation_input_tmp.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
+                self._validation_input.append(validation_input_tmp)
                 self._validation_hidden_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
             
             #
@@ -170,13 +175,15 @@ class srn_graph(object):
         #
         hidden = self._validation_hidden_saved[tower]
         
-        #
-        x = self._validation_input[tower]
-        output, hidden = self._srn_cell(x, hidden)
+        outputs = []
+        for i in range(self._num_validation_unfoldings):
+            x = self._validation_input[tower][i]
+            output, hidden = self._srn_cell(x, hidden)
+            outputs.append(output)
             
         #
         with tf.control_dependencies([self._validation_hidden_saved[tower].assign(hidden)]):
-            return output
+            return outputs
             
     # Optimization:
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
@@ -194,7 +201,8 @@ class srn_graph(object):
         validation_batches = []
         for tower in range(self._num_gpus):
             print('     Tower: %d' % tower)
-            validation_batches.append(batch_generator(validation_text[tower], 1, 1, self._vocabulary_size))
+            validation_batches.append(batch_generator(validation_text[tower], 1, self._num_validation_unfoldings,
+                                                      self._vocabulary_size))
         
         # Training loop
         batch_ctr = 0
@@ -220,7 +228,7 @@ class srn_graph(object):
                 for batch in range(training_batches[0].num_batches()):
 
                     # Get next training batch
-                    training_batches_next = list()
+                    training_batches_next = []
                     for tower in range(self._num_gpus):
                         training_batches_next.append(training_batches[tower].next())
                     batch_ctr += 1
@@ -249,21 +257,22 @@ class srn_graph(object):
                 for _ in range(validation_batches[0].num_batches()):
                     
                     # Get next validation batch
-                    validation_batches_next = list()
+                    validation_batches_next = []
                     for tower in range(self._num_gpus):
                         validation_batches_next.append(validation_batches[tower].next())
                     
                     # Validation
-                    validation_batch_next_label = list()
+                    validation_batch_next_label = []
                     for tower in range(self._num_gpus):
-                        validation_feed_dict[self._validation_input[tower]] = validation_batches_next[tower][0]
+                        for i in range(self._num_validation_unfoldings):
+                            validation_feed_dict[self._validation_input[tower][i]] = validation_batches_next[tower][i]
                         validation_batch_next_label.append(validation_batches_next[tower][1])
                     validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
                     for tower in range(self._num_gpus):
                         validation_log_prob_sum = validation_log_prob_sum + \
-                            log_prob(validation_prediction[tower], validation_batch_next_label[tower])
+                            log_prob(validation_prediction[tower][0], validation_batch_next_label[tower])
                     
                 # 
                 perplexity = float(2 ** (-validation_log_prob_sum / (self._num_gpus*validation_batches[0].num_batches())))
