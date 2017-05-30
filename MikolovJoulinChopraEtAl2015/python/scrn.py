@@ -285,20 +285,24 @@ class scrn_graph(object):
                         validation_batches_next.append(validation_batches[tower].next())
                     
                     # Validation
-                    validation_batch_next_label = []
+                    validation_batches_next_label = []
                     for tower in range(self._num_gpus):
+                        validation_batches_next_label_tmp = []
                         for i in range(self._num_validation_unfoldings):
                             validation_feed_dict[self._validation_input[tower][i]] = validation_batches_next[tower][i]
-                        validation_batch_next_label.append(validation_batches_next[tower][1])
+                            validation_batches_next_label_tmp.append(validation_batches_next[tower][i+1])
+                        validation_batches_next_label.append(validation_batches_next_label_tmp)
                     validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
                     for tower in range(self._num_gpus):
-                        validation_log_prob_sum = validation_log_prob_sum + \
-                            log_prob(validation_prediction[tower][0], validation_batch_next_label[tower])
+                        for i in range(self._num_validation_unfoldings):
+                            validation_log_prob_sum = validation_log_prob_sum + \
+                                log_prob(validation_prediction[tower][i], validation_batches_next_label[tower][i])
                     
                 # 
-                perplexity = float(2 ** (-validation_log_prob_sum / (self._num_gpus*validation_batches[0].num_batches())))
+                N = self._num_gpus*self._num_validation_unfoldings*validation_batches[0].num_batches()
+                perplexity = float(2 ** (-validation_log_prob_sum / N))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate
