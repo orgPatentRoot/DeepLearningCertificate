@@ -257,6 +257,7 @@ class lstm_graph(object):
                 # Iterate over training batches
                 for tower in range(self._num_gpus):
                     training_batches[tower].reset_token_idx()
+                session.run(self._reset_training_state)
                 for batch in range(training_batches[0].num_batches()):
 
                     # Get next training batch
@@ -274,7 +275,6 @@ class lstm_graph(object):
                     for tower in range(self._num_gpus):
                         for i in range(self._num_unfoldings + 1):
                             training_feed_dict[self._training_data[tower][i]] = training_batches_next[tower][i]
-                    session.run(self._reset_training_state)
                     session.run(self._optimize, feed_dict=training_feed_dict)
 
                     # Summarize current performance
