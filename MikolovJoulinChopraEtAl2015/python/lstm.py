@@ -22,12 +22,14 @@ from log_prob import log_prob
 class lstm_graph(object):
     
     #
-    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, batch_size):
+    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, 
+                 batch_size, num_validation_unfoldings):
         
         #
         self._batch_size = batch_size
         self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
+        self._num_validation_unfoldings = num_validation_unfoldings
         self._optimization_frequency = optimization_frequency
         self._vocabulary_size = vocabulary_size
         
@@ -65,11 +67,11 @@ class lstm_graph(object):
             self._W_bias = tf.Variable(tf.zeros([vocabulary_size]))
             
             # Training data
-            self._training_data = list()
-            self._training_output_saved = list()
-            self._training_state_saved = list()
+            self._training_data = []
+            self._training_output_saved = []
+            self._training_state_saved = []
             for _ in range(num_gpus):
-                training_data_tmp = list()
+                training_data_tmp = []
                 for _ in range(num_unfoldings + 1):
                     training_data_tmp.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
                 self._training_data.append(training_data_tmp)
@@ -77,28 +79,25 @@ class lstm_graph(object):
                 self._training_state_saved.append(tf.Variable(tf.zeros([self._batch_size, hidden_size]), trainable=False))
                 
             # Validation data
-            self._validation_input = list()
-            self._validation_output_saved = list()
-            self._validation_state_saved = list()
+            self._validation_input = []
+            self._validation_output_saved = []
+            self._validation_state_saved = []
             for _ in range(self._num_gpus):
-                self._validation_input.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
+                validation_input_tmp = []
+                for _ in range(num_validation_unfoldings):
+                    validation_input_tmp.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
+                self._validation_input.append(validation_input_tmp)
                 self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
                 self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
             
             #
             self._initialization = tf.global_variables_initializer()
             
-            # Reset training state (this is a kludge to get moving on testing the rest of the code)
-            if self._num_gpus == 1:
-                self._reset_training_state = \
-                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])))
-            elif self._num_gpus == 2:
-                self._reset_training_state = \
-                    tf.group(self._training_output_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[0].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_output_saved[1].assign(tf.zeros([batch_size, hidden_size])),
-                             self._training_state_saved[1].assign(tf.zeros([batch_size, hidden_size])))
+            # Reset training state
+            self._reset_training_state = \
+                [ tf.group(self._training_output_saved[tower].assign(tf.zeros([batch_size, hidden_size])),
+                           self._training_state_saved[tower].assign(tf.zeros([batch_size, hidden_size]))) \
+                  for tower in range(self._num_gpus) ]
                     
             # Training:
             
@@ -142,17 +141,11 @@ class lstm_graph(object):
                 
             # Validation:
     
-            # Reset validation state (this is a kludge to get moving on testing the rest of the code)
-            if self._num_gpus == 1:
-                self._reset_validation_state = \
-                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])))
-            elif self._num_gpus == 2:
-                self._reset_validation_state = \
-                    tf.group(self._validation_output_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[0].assign(tf.zeros([1, hidden_size])),
-                             self._validation_output_saved[1].assign(tf.zeros([1, hidden_size])),
-                             self._validation_state_saved[1].assign(tf.zeros([1, hidden_size])))
+            # Reset validation state
+            self._reset_validation_state = \
+                [ tf.group(self._validation_output_saved[tower].assign(tf.zeros([1, hidden_size])),
+                           self._validation_state_saved[tower].assign(tf.zeros([1, hidden_size]))) \
+                  for tower in range(self._num_gpus) ]
 
             # Run LSTM on validation data
             validation_outputs = []
@@ -163,12 +156,14 @@ class lstm_graph(object):
                         validation_outputs[tower] = self._validation_tower(tower)
                         tf.get_variable_scope().reuse_variables()
             
-            logits = tf.nn.xw_plus_b(validation_outputs[0], self._W, self._W_bias)
+            logits = []
+            for tower in range(self._num_gpus):
+                logits.append(tf.nn.xw_plus_b(validation_outputs[tower], self._W, self._W_bias))
 
             # Validation prediction, replace with hierarchical softmax in the future
             self._validation_prediction = tf.nn.softmax(logits)
                 
-    # LSTM cell definition:   .
+    # LSTM cell definition
     def _lstm_cell(self, x, h, c):
         forget_arg = tf.matmul(x, self._Wf) + tf.matmul(h, self._Uf)
         forget_gate = tf.sigmoid(forget_arg + self._forget_bias)
@@ -181,14 +176,14 @@ class lstm_graph(object):
         output = output_gate * tf.tanh(state)
         return output, state
     
-    #
+    # Implements a tower to run part of a batch of training data on a GPU
     def _training_tower(self, i, tower):
         
-        #
+        # Get saved training state
         output = self._training_output_saved[tower]
         state = self._training_state_saved[tower]
         
-        #
+        # Run training data through LSTM cells
         labels = []
         outputs = []
         for j in range(self._optimization_frequency):
@@ -198,28 +193,31 @@ class lstm_graph(object):
             labels.append(label)
             outputs.append(output)
             
-        #
+        # Save training state and return training outputs
         with tf.control_dependencies([self._training_output_saved[tower].assign(output), 
                                       self._training_state_saved[tower].assign(state)]):
             return outputs, labels
         
-    #
+    # Implements a tower to run part of a batch of validation data on a GPU
     def _validation_tower(self, tower):
         
-        #
+        # Get saved validation state
         output = self._validation_output_saved[tower]
         state = self._validation_state_saved[tower]
         
-        #
-        x = self._validation_input[tower]
-        output, state = self._lstm_cell(x, output, state)
+        # Run validation data through LSTM cells
+        outputs = []
+        for i in range(self._num_validation_unfoldings):
+            x = self._validation_input[tower][i]
+            output, state = self._lstm_cell(x, output, state)
+            outputs.append(output)
             
-        #
+        # Save validation state and return validation outputs
         with tf.control_dependencies([self._validation_output_saved[tower].assign(output), 
                                       self._validation_state_saved[tower].assign(state)]):
-            return output
+            return outputs
             
-    # Optimization:
+    # Optimize model parameters
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
 
         # Generate training batches
@@ -235,7 +233,8 @@ class lstm_graph(object):
         validation_batches = []
         for tower in range(self._num_gpus):
             print('     Tower: %d' % tower)
-            validation_batches.append(batch_generator(validation_text[tower], 1, 1, self._vocabulary_size))
+            validation_batches.append(batch_generator(validation_text[tower], 1, self._num_validation_unfoldings,
+                                                      self._vocabulary_size))
         
         # Training loop
         batch_ctr = 0
@@ -258,20 +257,24 @@ class lstm_graph(object):
                 # Iterate over training batches
                 for tower in range(self._num_gpus):
                     training_batches[tower].reset_token_idx()
+                session.run(self._reset_training_state)
                 for batch in range(training_batches[0].num_batches()):
 
                     # Get next training batch
-                    training_batches_next = list()
+                    training_batches_next = []
                     for tower in range(self._num_gpus):
-                        training_batches_next.append(training_batches[tower].next())
+                        training_batches_next.append([])
+                        with tf.device('/gpu:%d' % tower):
+                            with tf.name_scope('tower_%d' % tower) as scope:
+                                training_batches_next[tower] = training_batches[tower].next()
+                                tf.get_variable_scope().reuse_variables()
                     batch_ctr += 1
 
-                    # Optimizationm
+                    # Optimization
                     training_feed_dict[self._learning_rate] = learning_rate
                     for tower in range(self._num_gpus):
                         for i in range(self._num_unfoldings + 1):
                             training_feed_dict[self._training_data[tower][i]] = training_batches_next[tower][i]
-                    session.run(self._reset_training_state)
                     session.run(self._optimize, feed_dict=training_feed_dict)
 
                     # Summarize current performance
@@ -290,22 +293,33 @@ class lstm_graph(object):
                 for _ in range(validation_batches[0].num_batches()):
                     
                     # Get next validation batch
-                    validation_batches_next = list()
+                    validation_batches_next = []
                     for tower in range(self._num_gpus):
-                        validation_batches_next.append(validation_batches[tower].next())
+                        validation_batches_next.append([])
+                        with tf.device('/gpu:%d' % tower):
+                            with tf.name_scope('tower_%d' % tower) as scope:
+                                validation_batches_next[tower] = validation_batches[tower].next()
+                                tf.get_variable_scope().reuse_variables()
                     
                     # Validation
+                    validation_batches_next_label = []
                     for tower in range(self._num_gpus):
-                        validation_feed_dict[self._validation_input[tower]] = validation_batches_next[tower][0]
-                    validation_batch_next_label = validation_batches_next[0][1]
+                        validation_batches_next_label_tmp = []
+                        for i in range(self._num_validation_unfoldings):
+                            validation_feed_dict[self._validation_input[tower][i]] = validation_batches_next[tower][i]
+                            validation_batches_next_label_tmp.append(validation_batches_next[tower][i+1])
+                        validation_batches_next_label.append(validation_batches_next_label_tmp)
                     validation_prediction = session.run(self._validation_prediction, feed_dict=validation_feed_dict)
                     
                     # Summarize current performance
-                    validation_log_prob_sum = validation_log_prob_sum + log_prob(validation_prediction, 
-                                                                                 validation_batch_next_label)
+                    for tower in range(self._num_gpus):
+                        for i in range(self._num_validation_unfoldings):
+                            validation_log_prob_sum = validation_log_prob_sum + \
+                                log_prob(validation_prediction[tower][i], validation_batches_next_label[tower][i])
                     
-                # 
-                perplexity = float(2 ** (-validation_log_prob_sum / validation_batches[0].num_batches()))
+                # Calculation validation perplexity
+                N = self._num_gpus*self._num_validation_unfoldings*validation_batches[0].num_batches()
+                perplexity = float(2 ** (-validation_log_prob_sum / N))
                 print('Epoch: %d  Validation Set Perplexity: %.2f' % (epoch+1, perplexity))
 
                 # Update learning rate
