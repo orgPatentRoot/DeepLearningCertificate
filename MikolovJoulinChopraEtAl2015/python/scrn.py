@@ -58,7 +58,6 @@ class scrn_graph(object):
             # Output update tensor and bias.
             self._U = tf.Variable(tf.truncated_normal([hidden_size, vocabulary_size], -0.1, 0.1))
             self._V = tf.Variable(tf.truncated_normal([state_size, vocabulary_size], -0.1, 0.1))
-            self._output_bias = tf.Variable(tf.zeros([vocabulary_size]))
             
             # Training data
             self._training_data = []
@@ -164,7 +163,7 @@ class scrn_graph(object):
         hidden_arg = tf.matmul(state, self._P) + tf.matmul(x, self._A) + tf.matmul(h, self._R)
         hidden = tf.sigmoid(hidden_arg)
         output_arg = tf.matmul(hidden, self._U) + tf.matmul(state, self._V) 
-        output = output_arg + self._output_bias
+        output = output_arg
         return output, hidden, state
     
     # Implements a tower to run part of a batch of training data on a GPU
