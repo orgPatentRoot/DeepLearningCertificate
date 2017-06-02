@@ -83,21 +83,18 @@ class scrn_graph(object):
                 self._validation_hidden_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
                 self._validation_state_saved.append(tf.Variable(tf.zeros([1, state_size])))
             
-            #
+            # Initialization
             self._initialization = tf.global_variables_initializer()
+                        
+            # Training:
             
             # Reset training state
             self._reset_training_state = \
                 [ tf.group(self._training_hidden_saved[tower].assign(tf.zeros([batch_size, hidden_size])),
                            self._training_state_saved[tower].assign(tf.zeros([batch_size, state_size]))) \
                   for tower in range(self._num_gpus) ]
-                        
-            
-            # Training:
-            
-            # Unfold SCRN
 
-            #
+            # Train SCRN on training data
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
             for i in range(self._num_unfoldings // self._optimization_frequency):
                 training_labels = []
@@ -117,21 +114,11 @@ class scrn_graph(object):
                 logits = tf.concat(all_training_outputs, 0)
                 labels = tf.concat(all_training_labels, 0)
 
-                if i < self._num_unfoldings // self._optimization_frequency - 1:
-                        
-                    # Replace with hierarchical softmax in the future
-                    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+                # Replace with hierarchical softmax in the future
+                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
-                    gradients = optimizer.compute_gradients(cost)
-                    optimizer.apply_gradients(gradients)
-                
-            # Optimize parameters
-            
-            # Replace with hierarchical softmax in the future
-            self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-            
-            gradients = optimizer.compute_gradients(cost)
-            self._optimize = optimizer.apply_gradients(gradients)
+                gradients = optimizer.compute_gradients(self._cost)
+                self._optimize = optimizer.apply_gradients(gradients)
                 
             # Validation:
     
@@ -150,7 +137,6 @@ class scrn_graph(object):
                     with tf.name_scope('tower_%d' % tower) as scope:
                         validation_outputs[tower] = self._validation_tower(tower)
                         tf.get_variable_scope().reuse_variables()
-            
             logits = validation_outputs
 
             # Validation prediction, replace with hierarchical softmax in the future
@@ -160,7 +146,7 @@ class scrn_graph(object):
     def _scrn_cell(self, x, h, s):
         state_arg = (1 - self._alpha) * tf.matmul(x, self._B) + self._alpha * s
         state = state_arg
-        hidden_arg = tf.matmul(state, self._P) + tf.matmul(x, self._A) + tf.matmul(h, self._R)
+        hidden_arg = tf.matmul(s, self._P) + tf.matmul(x, self._A) + tf.matmul(h, self._R)
         hidden = tf.sigmoid(hidden_arg)
         output_arg = tf.matmul(hidden, self._U) + tf.matmul(state, self._V) 
         output = output_arg

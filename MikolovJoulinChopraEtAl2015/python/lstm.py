@@ -90,20 +90,18 @@ class lstm_graph(object):
                 self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
                 self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
             
-            #
+            # Initialization
             self._initialization = tf.global_variables_initializer()
+                    
+            # Training:
             
             # Reset training state
             self._reset_training_state = \
                 [ tf.group(self._training_output_saved[tower].assign(tf.zeros([batch_size, hidden_size])),
                            self._training_state_saved[tower].assign(tf.zeros([batch_size, hidden_size]))) \
                   for tower in range(self._num_gpus) ]
-                    
-            # Training:
             
-            # Unfold LSTM
-            
-            #
+            # Train LSTM on training data
             optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
             for i in range(self._num_unfoldings // self._optimization_frequency):
                 training_labels = []
@@ -123,21 +121,11 @@ class lstm_graph(object):
                 logits = tf.nn.xw_plus_b(tf.concat(all_training_outputs, 0), self._W, self._W_bias)
                 labels = tf.concat(all_training_labels, 0)
 
-                if i < self._num_unfoldings // self._optimization_frequency - 1:
-                        
-                    # Replace with hierarchical softmax in the future
-                    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+                # Replace with hierarchical softmax in the future
+                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
-                    gradients = optimizer.compute_gradients(cost)
-                    optimizer.apply_gradients(gradients)
-                
-            # Optimize parameters
-            
-            # Replace with hierarchical softmax in the future
-            self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-            
-            gradients = optimizer.compute_gradients(cost)
-            self._optimize = optimizer.apply_gradients(gradients)
+                gradients = optimizer.compute_gradients(self._cost)
+                self._optimize = optimizer.apply_gradients(gradients)
                 
             # Validation:
     
