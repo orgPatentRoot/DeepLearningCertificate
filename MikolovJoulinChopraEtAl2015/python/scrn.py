@@ -23,11 +23,13 @@ class scrn_graph(object):
     
     #
     def __init__(self, num_gpus, alpha, hidden_size, state_size, vocabulary_size, num_unfoldings, 
-                 optimization_frequency, batch_size, num_validation_unfoldings):
+                 optimization_frequency, clip_norm, momentum, batch_size, num_validation_unfoldings):
         
         #
         self._alpha = alpha
         self._batch_size = batch_size
+        self._clip_norm = clip_norm
+        self._momentum = momentum
         self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
         self._num_validation_unfoldings = num_validation_unfoldings
@@ -82,33 +84,26 @@ class scrn_graph(object):
                 self._validation_input.append(validation_input_tmp)
                 self._validation_hidden_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
                 self._validation_state_saved.append(tf.Variable(tf.zeros([1, state_size])))
-            
-            #
-            self._initialization = tf.global_variables_initializer()
+                
+            # Optimizer
+            self._optimizer = tf.train.MomentumOptimizer(self._learning_rate, self._momentum)
+                        
+            # Training:
             
             # Reset training state
             self._reset_training_state = \
                 [ tf.group(self._training_hidden_saved[tower].assign(tf.zeros([batch_size, hidden_size])),
                            self._training_state_saved[tower].assign(tf.zeros([batch_size, state_size]))) \
                   for tower in range(self._num_gpus) ]
-                        
-            
-            # Training:
-            
-            # Unfold SCRN
 
-            #
-            optimizer = tf.train.GradientDescentOptimizer(self._learning_rate)
+            # Train SCRN on training data
             for i in range(self._num_unfoldings // self._optimization_frequency):
                 training_labels = []
                 training_outputs = []
                 for tower in range(self._num_gpus):
                     training_labels.append([])
                     training_outputs.append([])
-                    with tf.device('/gpu:%d' % tower):
-                        with tf.name_scope('tower_%d' % tower) as scope:
-                            training_outputs[tower], training_labels[tower] = self._training_tower(i, tower)
-                            tf.get_variable_scope().reuse_variables()
+                    training_outputs[tower], training_labels[tower] = self._training_tower(i, tower)
                 all_training_outputs = []
                 all_training_labels = []
                 for tower in range(self._num_gpus):
@@ -117,21 +112,16 @@ class scrn_graph(object):
                 logits = tf.concat(all_training_outputs, 0)
                 labels = tf.concat(all_training_labels, 0)
 
-                if i < self._num_unfoldings // self._optimization_frequency - 1:
-                        
-                    # Replace with hierarchical softmax in the future
-                    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+                # Replace with hierarchical softmax in the future
+                self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
-                    gradients = optimizer.compute_gradients(cost)
-                    optimizer.apply_gradients(gradients)
+                gradients, variables = zip(*self._optimizer.compute_gradients(self._cost))
+                gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+                self._optimize = self._optimizer.apply_gradients(zip(gradients, variables))
                 
-            # Optimize parameters
+            # Initialization:
             
-            # Replace with hierarchical softmax in the future
-            self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-            
-            gradients = optimizer.compute_gradients(cost)
-            self._optimize = optimizer.apply_gradients(gradients)
+            self._initialization = tf.global_variables_initializer()
                 
             # Validation:
     
@@ -146,11 +136,7 @@ class scrn_graph(object):
             validation_outputs = []
             for tower in range(self._num_gpus):
                 validation_outputs.append([])
-                with tf.device('/gpu:%d' % tower):
-                    with tf.name_scope('tower_%d' % tower) as scope:
-                        validation_outputs[tower] = self._validation_tower(tower)
-                        tf.get_variable_scope().reuse_variables()
-            
+                validation_outputs[tower] = self._validation_tower(tower)
             logits = validation_outputs
 
             # Validation prediction, replace with hierarchical softmax in the future
@@ -160,7 +146,7 @@ class scrn_graph(object):
     def _scrn_cell(self, x, h, s):
         state_arg = (1 - self._alpha) * tf.matmul(x, self._B) + self._alpha * s
         state = state_arg
-        hidden_arg = tf.matmul(state, self._P) + tf.matmul(x, self._A) + tf.matmul(h, self._R)
+        hidden_arg = tf.matmul(s, self._P) + tf.matmul(x, self._A) + tf.matmul(h, self._R)
         hidden = tf.sigmoid(hidden_arg)
         output_arg = tf.matmul(hidden, self._U) + tf.matmul(state, self._V) 
         output = output_arg
@@ -169,43 +155,49 @@ class scrn_graph(object):
     # Implements a tower to run part of a batch of training data on a GPU
     def _training_tower(self, i, tower):
         
-        # Get saved training state
-        hidden = self._training_hidden_saved[tower]
-        state = self._training_state_saved[tower]
+        with tf.device('/gpu:%d' % tower):
+            with tf.name_scope('tower_%d' % tower) as scope:
         
-        # Run training data through SCRN cells
-        labels = []
-        outputs = []
-        for j in range(self._optimization_frequency):
-            x = self._training_data[tower][i*self._optimization_frequency + j]
-            label = self._training_data[tower][i*self._optimization_frequency + j + 1]
-            output, hidden, state = self._scrn_cell(x, hidden, state)
-            labels.append(label)
-            outputs.append(output)
-            
-        # Save training state and return training outputs
-        with tf.control_dependencies([self._training_hidden_saved[tower].assign(hidden), 
-                                      self._training_state_saved[tower].assign(state)]):
-            return outputs, labels
+                # Get saved training state
+                hidden = self._training_hidden_saved[tower]
+                state = self._training_state_saved[tower]
+
+                # Run training data through SCRN cells
+                labels = []
+                outputs = []
+                for j in range(self._optimization_frequency):
+                    x = self._training_data[tower][i*self._optimization_frequency + j]
+                    label = self._training_data[tower][i*self._optimization_frequency + j + 1]
+                    output, hidden, state = self._scrn_cell(x, hidden, state)
+                    labels.append(label)
+                    outputs.append(output)
+
+                # Save training state and return training outputs
+                with tf.control_dependencies([self._training_hidden_saved[tower].assign(hidden), 
+                                              self._training_state_saved[tower].assign(state)]):
+                    return outputs, labels
         
     # Implements a tower to run part of a batch of validation data on a GPU
     def _validation_tower(self, tower):
         
-        # Get saved validation state
-        hidden = self._validation_hidden_saved[tower]
-        state = self._validation_state_saved[tower]
+        with tf.device('/gpu:%d' % tower):
+            with tf.name_scope('tower_%d' % tower) as scope:
         
-        # Run validation data through SCRN cells
-        outputs = []
-        for i in range(self._num_validation_unfoldings):
-            x = self._validation_input[tower][i]
-            output, hidden, state = self._scrn_cell(x, hidden, state)
-            outputs.append(output)
-            
-        # Save validation state and return validation outputs
-        with tf.control_dependencies([self._validation_hidden_saved[tower].assign(hidden), 
-                                      self._validation_state_saved[tower].assign(state)]):
-            return outputs
+                # Get saved validation state
+                hidden = self._validation_hidden_saved[tower]
+                state = self._validation_state_saved[tower]
+
+                # Run validation data through SCRN cells
+                outputs = []
+                for i in range(self._num_validation_unfoldings):
+                    x = self._validation_input[tower][i]
+                    output, hidden, state = self._scrn_cell(x, hidden, state)
+                    outputs.append(output)
+
+                # Save validation state and return validation outputs
+                with tf.control_dependencies([self._validation_hidden_saved[tower].assign(hidden), 
+                                              self._validation_state_saved[tower].assign(state)]):
+                    return outputs
             
     # Optimize model parameters
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
