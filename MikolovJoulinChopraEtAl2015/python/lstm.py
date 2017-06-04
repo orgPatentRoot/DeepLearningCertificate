@@ -22,11 +22,13 @@ from log_prob import log_prob
 class lstm_graph(object):
     
     #
-    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, 
-                 batch_size, num_validation_unfoldings):
+    def __init__(self, num_gpus, hidden_size, vocabulary_size, num_unfoldings, optimization_frequency, clip_norm,
+                 momentum, batch_size, num_validation_unfoldings):
         
         #
         self._batch_size = batch_size
+        self._clip_norm = clip_norm
+        self._momentum = momentum
         self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
         self._num_validation_unfoldings = num_validation_unfoldings
@@ -89,9 +91,9 @@ class lstm_graph(object):
                 self._validation_input.append(validation_input_tmp)
                 self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
                 self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
-            
-            # Initialization
-            self._initialization = tf.global_variables_initializer()
+                
+            # Optimizer
+            self._optimizer = tf.train.MomentumOptimizer(self._learning_rate, self._momentum)
                     
             # Training:
             
@@ -109,23 +111,25 @@ class lstm_graph(object):
                 for tower in range(self._num_gpus):
                     training_labels.append([])
                     training_outputs.append([])
-                    with tf.device('/gpu:%d' % tower):
-                        with tf.name_scope('tower_%d' % tower) as scope:
-                            training_outputs[tower], training_labels[tower] = self._training_tower(i, tower)
-                            tf.get_variable_scope().reuse_variables()
+                    training_outputs[tower], training_labels[tower] = self._training_tower(i, tower)
                 all_training_outputs = []
                 all_training_labels = []
                 for tower in range(self._num_gpus):
                     all_training_outputs += training_outputs[tower]
                     all_training_labels += training_labels[tower]
-                logits = tf.nn.xw_plus_b(tf.concat(all_training_outputs, 0), self._W, self._W_bias)
+                logits = tf.concat(all_training_outputs, 0)
                 labels = tf.concat(all_training_labels, 0)
 
                 # Replace with hierarchical softmax in the future
                 self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
-                gradients = optimizer.compute_gradients(self._cost)
-                self._optimize = optimizer.apply_gradients(gradients)
+                gradients, variables = zip(*optimizer.compute_gradients(self._cost))
+                gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
+                self._optimize = optimizer.apply_gradients(zip(gradients, variables))
+                
+            # Initialization:
+            
+            self._initialization = tf.global_variables_initializer()
                 
             # Validation:
     
@@ -139,14 +143,8 @@ class lstm_graph(object):
             validation_outputs = []
             for tower in range(self._num_gpus):
                 validation_outputs.append([])
-                with tf.device('/gpu:%d' % tower):
-                    with tf.name_scope('tower_%d' % tower) as scope:
-                        validation_outputs[tower] = self._validation_tower(tower)
-                        tf.get_variable_scope().reuse_variables()
-            
-            logits = []
-            for tower in range(self._num_gpus):
-                logits.append(tf.nn.xw_plus_b(validation_outputs[tower], self._W, self._W_bias))
+                validation_outputs[tower] = self._validation_tower(tower)
+            logits = validation_outputs
 
             # Validation prediction, replace with hierarchical softmax in the future
             self._validation_prediction = tf.nn.softmax(logits)
@@ -167,43 +165,49 @@ class lstm_graph(object):
     # Implements a tower to run part of a batch of training data on a GPU
     def _training_tower(self, i, tower):
         
-        # Get saved training state
-        output = self._training_output_saved[tower]
-        state = self._training_state_saved[tower]
+        with tf.device('/gpu:%d' % tower):
+            with tf.name_scope('tower_%d' % tower) as scope:
         
-        # Run training data through LSTM cells
-        labels = []
-        outputs = []
-        for j in range(self._optimization_frequency):
-            x = self._training_data[tower][i*self._optimization_frequency + j]
-            label = self._training_data[tower][i*self._optimization_frequency + j + 1]
-            output, state = self._lstm_cell(x, output, state)
-            labels.append(label)
-            outputs.append(output)
-            
-        # Save training state and return training outputs
-        with tf.control_dependencies([self._training_output_saved[tower].assign(output), 
-                                      self._training_state_saved[tower].assign(state)]):
-            return outputs, labels
+                # Get saved training state
+                output = self._training_output_saved[tower]
+                state = self._training_state_saved[tower]
+
+                # Run training data through LSTM cells
+                labels = []
+                outputs = []
+                for j in range(self._optimization_frequency):
+                    x = self._training_data[tower][i*self._optimization_frequency + j]
+                    label = self._training_data[tower][i*self._optimization_frequency + j + 1]
+                    output, state = self._lstm_cell(x, output, state)
+                    labels.append(label)
+                    outputs.append(tf.nn.xw_plus_b(output, self._W, self._W_bias))
+
+                # Save training state and return training outputs
+                with tf.control_dependencies([self._training_output_saved[tower].assign(output), 
+                                              self._training_state_saved[tower].assign(state)]):
+                    return outputs, labels
         
     # Implements a tower to run part of a batch of validation data on a GPU
     def _validation_tower(self, tower):
         
-        # Get saved validation state
-        output = self._validation_output_saved[tower]
-        state = self._validation_state_saved[tower]
+        with tf.device('/gpu:%d' % tower):
+            with tf.name_scope('tower_%d' % tower) as scope:
         
-        # Run validation data through LSTM cells
-        outputs = []
-        for i in range(self._num_validation_unfoldings):
-            x = self._validation_input[tower][i]
-            output, state = self._lstm_cell(x, output, state)
-            outputs.append(output)
-            
-        # Save validation state and return validation outputs
-        with tf.control_dependencies([self._validation_output_saved[tower].assign(output), 
-                                      self._validation_state_saved[tower].assign(state)]):
-            return outputs
+                # Get saved validation state
+                output = self._validation_output_saved[tower]
+                state = self._validation_state_saved[tower]
+
+                # Run validation data through LSTM cells
+                outputs = []
+                for i in range(self._num_validation_unfoldings):
+                    x = self._validation_input[tower][i]
+                    output, state = self._lstm_cell(x, output, state)
+                    outputs.append(tf.nn.xw_plus_b(output, self._W, self._W_bias))
+
+                # Save validation state and return validation outputs
+                with tf.control_dependencies([self._validation_output_saved[tower].assign(output), 
+                                              self._validation_state_saved[tower].assign(state)]):
+                    return outputs
             
     # Optimize model parameters
     def optimization(self, learning_rate, learning_decay, num_epochs, summary_frequency, training_text, validation_text):
