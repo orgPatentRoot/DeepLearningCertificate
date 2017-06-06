@@ -101,8 +101,8 @@ class lstm_graph(object):
                 for _ in range(num_validation_unfoldings):
                     validation_input_tmp.append(tf.placeholder(tf.float32, shape=[1, vocabulary_size]))
                 self._validation_input.append(validation_input_tmp)
-                self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
-                self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size])))
+                self._validation_output_saved.append(tf.Variable(tf.zeros([1, hidden_size]), trainable=False))
+                self._validation_state_saved.append(tf.Variable(tf.zeros([1, hidden_size]), trainable=False))
                 
             # Optimizer
             self._optimizer = tf.train.MomentumOptimizer(self._learning_rate, self._momentum)
