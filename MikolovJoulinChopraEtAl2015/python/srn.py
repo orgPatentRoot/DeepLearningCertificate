@@ -22,7 +22,7 @@ from log_prob import log_prob
 class srn_graph(object):
     
     #
-    def __init__(self, cluster_spec, num_worker_hosts, num_gpus, hidden_size, vocabulary_size, num_unfoldings,
+    def __init__(self, cluster_spec, num_gpus, hidden_size, vocabulary_size, num_unfoldings,
                  optimization_frequency, clip_norm, momentum, batch_size, num_validation_unfoldings):
         
         #
@@ -33,20 +33,23 @@ class srn_graph(object):
         self._num_gpus = num_gpus
         self._num_unfoldings = num_unfoldings
         self._num_validation_unfoldings = num_validation_unfoldings
-        self._num_worker_hosts = num_worker_hosts
         self._optimization_frequency = optimization_frequency
         self._vocabulary_size = vocabulary_size
         
         #
-        self._num_towers = self._num_worker_hosts * self._num_gpus
+        self._num_towers = sum(self._num_gpus)
+        self._num_worker_hosts = len(self._cluster_spec)
         
         #
         self._graph = tf.Graph()
         with self._graph.as_default():
             
             #
-            cluster = tf.train.ClusterSpec(self._cluster_spec)
-            server = tf.train.Server(cluster, job_name="worker", task_index=0)
+            clusters = []
+            servers = []
+            for worker_host in range(self._num_worker_hosts):
+                clusters.append(tf.train.ClusterSpec(self._cluster_spec[worker_host]))
+                servers.append(tf.train.Server(clusters[worker_host], job_name="worker", task_index=0))
 
             # Variable definitions:
 
@@ -99,7 +102,9 @@ class srn_graph(object):
                 training_outputs = []
                 tower = 0
                 for worker_host in range(self._num_worker_hosts):
-                    for gpu in range(self._num_gpus):
+                    cluster = clusters[worker_host]
+                    server = servers[worker_host]
+                    for gpu in range(self._num_gpus[worker_host]):
                         training_labels.append([])
                         training_outputs.append([])
                         training_outputs[tower], training_labels[tower] = self._training_tower(cluster, i, tower, 
@@ -135,7 +140,9 @@ class srn_graph(object):
             validation_outputs = []
             tower = 0
             for worker_host in range(self._num_worker_hosts):
-                for gpu in range(self._num_gpus):
+                cluster = clusters[worker_host]
+                server = servers[worker_host]
+                for gpu in range(self._num_gpus[worker_host]):
                     validation_outputs.append([])
                     validation_outputs[tower] = self._validation_tower(cluster, tower, worker_host, gpu)
                     tower += 1
