@@ -39,18 +39,14 @@ class scrn_graph(object):
         
         #
         self._num_towers = sum(self._num_gpus)
-        self._num_worker_hosts = len(self._cluster_spec)
+        self._num_worker_hosts = len(self._num_gpus)
         
         #
         self._graph = tf.Graph()
         with self._graph.as_default():
 
             #
-            clusters = []
-            servers = []
-            for worker_host in range(self._num_worker_hosts):
-                clusters.append(tf.train.ClusterSpec(self._cluster_spec[worker_host]))
-                servers.append(tf.train.Server(clusters[worker_host], job_name="worker", task_index=0))
+            self._cluster = tf.train.ClusterSpec(self._cluster_spec)
            
             # Variable definitions:
 
@@ -112,15 +108,14 @@ class scrn_graph(object):
             for i in range(self._num_unfoldings // self._optimization_frequency):
                 training_labels = []
                 training_outputs = []
+                for tower in range(self._num_towers):
+                    training_labels.append([])
+                    training_outputs.append([])
                 tower = 0
                 for worker_host in range(self._num_worker_hosts):
-                    cluster = clusters[worker_host]
-                    server = servers[worker_host]
                     for gpu in range(self._num_gpus[worker_host]):
-                        training_labels.append([])
-                        training_outputs.append([])
-                        training_outputs[tower], training_labels[tower] = self._training_tower(cluster, i, tower, 
-                                                                                               worker_host, gpu)
+                        training_outputs[tower], training_labels[tower] = \
+                            self._training_tower(i, tower, worker_host, gpu)
                         tower += 1
                 all_training_outputs = []
                 all_training_labels = []
@@ -152,13 +147,12 @@ class scrn_graph(object):
 
             # Run SCRN on validation data
             validation_outputs = []
+            for tower in range(self._num_towers):
+                validation_outputs.append([])
             tower = 0
             for worker_host in range(self._num_worker_hosts):
-                cluster = clusters[worker_host]
-                server = servers[worker_host]
                 for gpu in range(self._num_gpus[worker_host]):
-                    validation_outputs.append([])
-                    validation_outputs[tower] = self._validation_tower(cluster, tower, worker_host, gpu)
+                    validation_outputs[tower] = self._validation_tower(tower, worker_host, gpu)
                     tower += 1
             logits = validation_outputs
 
@@ -176,10 +170,10 @@ class scrn_graph(object):
         return output, hidden, state
     
     # Implements a tower to run part of a batch of training data on a GPU
-    def _training_tower(self, cluster, i, tower, worker_host, gpu):
+    def _training_tower(self, i, tower, worker_host, gpu):
         
         with tf.device(tf.train.replica_device_setter(
-            worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), cluster=cluster)):
+            worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), cluster=self._cluster)):
             with tf.name_scope('tower_%d' % tower) as scope:
         
                 # Get saved training state
@@ -202,10 +196,10 @@ class scrn_graph(object):
                     return outputs, labels
         
     # Implements a tower to run part of a batch of validation data on a GPU
-    def _validation_tower(self, cluster, tower, worker_host, gpu):
+    def _validation_tower(self, tower, worker_host, gpu):
         
         with tf.device(tf.train.replica_device_setter(
-            worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), cluster=cluster)):
+            worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), cluster=self._cluster)):
             with tf.name_scope('tower_%d' % tower) as scope:
         
                 # Get saved validation state
@@ -230,18 +224,32 @@ class scrn_graph(object):
         # Generate training batches
         print('Training Batch Generator:')
         training_batches = []
-        for tower in range(self._num_towers):
-            print('     Tower: %d' % tower)
-            training_batches.append(batch_generator(training_text[tower], self._batch_size,
-                                                    self._num_unfoldings, self._vocabulary_size))
+        tower = 0
+        for worker_host in range(self._num_worker_hosts):
+            for gpu in range(self._num_gpus[worker_host]):
+                with tf.device(tf.train.replica_device_setter(
+                    worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), 
+                    cluster=self._cluster)):
+                    with tf.name_scope('tower_%d' % tower) as scope:
+                        training_batches.append(batch_generator(tower, training_text[tower], self._batch_size,
+                                                                self._num_unfoldings, self._vocabulary_size))
+                        tower += 1
+                        tf.get_variable_scope().reuse_variables()
         
         # Generate validation batches
         print('Validation Batch Generator:')
         validation_batches = []
-        for tower in range(self._num_towers):
-            print('     Tower: %d' % tower)
-            validation_batches.append(batch_generator(validation_text[tower], 1, self._num_validation_unfoldings,
-                                                      self._vocabulary_size))
+        tower = 0
+        for worker_host in range(self._num_worker_hosts):
+            for gpu in range(self._num_gpus[worker_host]):
+                with tf.device(tf.train.replica_device_setter(
+                    worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), 
+                    cluster=self._cluster)):
+                    with tf.name_scope('tower_%d' % tower) as scope:
+                        validation_batches.append(batch_generator(tower, validation_text[tower], 1,
+                                                                  self._num_validation_unfoldings, self._vocabulary_size))
+                        tower += 1
+                        tf.get_variable_scope().reuse_variables()
         
         # Training loop
         batch_ctr = 0
@@ -269,9 +277,17 @@ class scrn_graph(object):
 
                     # Get next training batch
                     training_batches_next = []
-                    for tower in range(self._num_towers):
-                        training_batches_next.append([])
-                        training_batches_next[tower] = training_batches[tower].next()
+                    tower = 0
+                    for worker_host in range(self._num_worker_hosts):
+                        for gpu in range(self._num_gpus[worker_host]):
+                            with tf.device(tf.train.replica_device_setter(
+                                worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu),
+                                cluster=self._cluster)):
+                                with tf.name_scope('tower_%d' % tower) as scope:
+                                    training_batches_next.append([])
+                                    training_batches_next[tower] = training_batches[tower].next()
+                                    tower += 1
+                                    tf.get_variable_scope().reuse_variables()
                     batch_ctr += 1
 
                     # Optimization
@@ -298,12 +314,16 @@ class scrn_graph(object):
                     
                     # Get next validation batch
                     validation_batches_next = []
-                    for tower in range(self._num_towers):
-                        validation_batches_next.append([])
-                        with tf.device('/gpu:%d' % tower):
-                            with tf.name_scope('tower_%d' % tower) as scope:
-                                validation_batches_next[tower] = validation_batches[tower].next()
-                                tf.get_variable_scope().reuse_variables()
+                    tower = 0
+                    for worker_host in range(self._num_worker_hosts):
+                        for gpu in range(self._num_gpus[worker_host]):
+                            with tf.device(tf.train.replica_device_setter(
+                                worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), 
+                                cluster=self._cluster)):
+                                with tf.name_scope('tower_%d' % tower) as scope:
+                                    validation_batches_next[tower] = validation_batches[tower].next()
+                                    tower += 1
+                                    tf.get_variable_scope().reuse_variables()
                     
                     # Validation
                     validation_batches_next_label = []

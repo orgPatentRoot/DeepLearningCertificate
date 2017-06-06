@@ -14,7 +14,7 @@ import numpy as np
 class batch_generator(object):
     
     #
-    def __init__(self, text, batch_size, num_unfoldings, vocabulary_size):
+    def __init__(self, tower, text, batch_size, num_unfoldings, vocabulary_size):
         
         #
         self._batch_size = batch_size
@@ -40,6 +40,7 @@ class batch_generator(object):
         self._last_batch = self._next_batch()
         
         #
+        print('     Tower: %d' % tower)
         print('          Input Text Size: %d' % len(text))
         print('          Cut Text Size: %d' % self._text_size)
         print('          Subtext Size: %d' % self._sub_text_size)
@@ -70,4 +71,3 @@ class batch_generator(object):
     
     def reset_token_idx(self):
         self._token_idx = 0
-        
