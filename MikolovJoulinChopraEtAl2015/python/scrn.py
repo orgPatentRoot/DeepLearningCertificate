@@ -321,6 +321,7 @@ class scrn_graph(object):
                                 worker_device="/job:worker/task:%d/gpu:%d" % (worker_host, gpu), 
                                 cluster=self._cluster)):
                                 with tf.name_scope('tower_%d' % tower) as scope:
+                                    validation_batches_next.append([])
                                     validation_batches_next[tower] = validation_batches[tower].next()
                                     tower += 1
                                     tf.get_variable_scope().reuse_variables()
