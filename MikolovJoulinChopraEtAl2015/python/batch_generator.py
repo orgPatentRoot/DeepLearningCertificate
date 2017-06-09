@@ -3,6 +3,9 @@
 # This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
 # https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
 #
+# This model is superceded by the Delta-RNN model given in Ororbia et al. 2017, arXiv:1703.08864 [cs.CL], 
+# https://arxiv.org/abs/1703.08864 implemented in this repository using Python and Tensorflow.
+#
 # The batch generator class that is used to feed the data to the LSTM, SCRN, and SRN models.
 #
 # Stuart Hagler, 2017
