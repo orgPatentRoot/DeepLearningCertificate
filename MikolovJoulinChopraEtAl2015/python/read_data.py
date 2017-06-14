@@ -3,6 +3,9 @@
 # This gives an implementation of the SCRN model given in Mikolov et al. 2015, arXiv:1412.7753 [cs.NE], 
 # https://arxiv.org/abs/1412.7753 using Python and Tensorflow.
 #
+# This model is superceded by the Delta-RNN model given in Ororbia et al. 2017, arXiv:1703.08864 [cs.CL], 
+# https://arxiv.org/abs/1703.08864 implemented in this repository using Python and Tensorflow.
+#
 # A read data function that reads data in a zip-file for feeding into the LSTM, SCRN, and SRN models.
 #
 # Stuart Hagler, 2017
