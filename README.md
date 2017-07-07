@@ -14,6 +14,8 @@ In addition to hardware resources we also provide access to expert mentorship an
 
 No one will be turned away, however, for the professional track you will need to do a quick interview where we gauge your skill level and help you pick a paper (and sign some paperwork) and optionally pay for our placement services. For the academic track we recommend setting up a meeting with us but it's not required to get started - you can simply [follow these instructions](https://grey.colorado.edu/emergent/index.php/Stampede) to get access to our supercomputing resources.
 
+To get started send your resume to Brian Mingus at brian@latent.ly
+
 ## Guidelines
 
 * Code must be written in Tensorflow or a library that uses it such as Keras or Sonnet.
