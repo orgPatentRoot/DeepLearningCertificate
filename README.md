@@ -1,30 +1,27 @@
 ## Latently Deep Learning Certificate - Publicly Replicate all AI and ML Scientific Papers and Patents
 
-The Latently Deep Learning Certificate offers self-motivated participants with the opportunity to build state of the art deep learning models and gain industry experience. We provide all the raw materials for success including the environment, access to a community, expert mentorship, and a curated library of the hottest research publications on deep learning. Over the course of 90 days, participants independently choose and build a deep learning model. A model implementation can be completed at any time during the course of the program. Successful participants are those who commit to the program and effectively manage their own time and effort, demonstrating their engineering maturity. Hot and historically important models are the highest priority, but all models are eligible. You may earn multiple certificates, but we reserve the right to decline to accept trivial implementations or trivial modifications of existing implementations.
+Welcome to the LDLC!
 
-As part of the certificate program you'll gain valuable experience and access to our 16 GPU cluster provided by IBM. If you successfully implement the paper or patent and we approve the implementation we'll also issue you a formal certificate that recognizes the engineering maturity required to successfully replicate a paper or patent and you'll also have priority access to interview for salaried positions when they open up in the future.
+Have you ever felt that the progress in deep learning was so dizzyingly fast that you couldn't keep up? That technology was passing you by? That there's no way for you to get qualified for that industry job in AI/ML/DL simply because you didn't have access to hardware? That you aren't sure whether it's safe to create a business using a particular algorithm due to patent concerns? 
 
-Code must be developed in public on our GitHub and released under the GPLv3. Latently reserves the right to change these terms to help ensure the success of the program and company. Latently reserves the right to issue the Latently Deep Learning Certificate for other purposes, not limited to novel implementations of algorithms, collaborations, multiple certificates for one difficult paper or patent, etc.
+Worry no more! The LDLC is here to help!
 
-Ideally, a successful implementation of a paper or patent implies writing code that replicates the findings in that paper or patent. However, due to hardware constraints this may not be possible and so the nearest reasonable approximation may be acceptable if you get permission from us. If a certificate is issued for an implementation that was not a replication, that paper or patent may be eligible for further development that results in a certificate being issued so that replication can be achieved.
+In partnership with Bitfusion, IBM and The Neuroscience Gateway, Latently is offering a certificate program that is poised to simultaneously solve these problems and more. We are creating a community of engineers who are simultaneously leveling up the skills they need to get work and stay caught up with the latest advances while also contributing to the world's largest repository of implementations of optimization algorithms.
+
+The certificate program has two tracks. The first is the professional track, where participants will replicate or implement a hot or historically important scientific paper on our GPU cluster running the Bitfusion Flex platform. The code will be made available to the public under the GPLv3, and to Latently with an unrestricted license. Your code may eventually be made available for sale on our marketplace and you will retain the majority stake. The second is the academic track, where participants will implement a model using the ''emergent'' deep learning simulator on the Comet and Stampede supercomputers. This code will only be licensed under the GPLv3.
+
+In addition to hardware resources we also provide access to expert mentorship and a community of peers (https://latently.slack.com).
+
+No one will be turned away, however, for the professional track you will need to do a quick interview where we gauge your skill level and help you pick a paper (and sign some paperwork) and optionally pay for our placement services. For the academic track we recommend setting up a meeting with us but it's not required to get started - you can simply [follow these instructions](https://grey.colorado.edu/emergent/index.php/Stampede) to get access to our supercomputing resources.
 
 ## Guidelines
 
-* Code must be written in Keras, Sonnet or Tensorflow. In the case of Keras, Tensorflow must be the backend.
+* Code must be written in Tensorflow or a library that uses it such as Keras or Sonnet.
 * Code should be factored out into a resuable library that makes it simpler to implement new papers. 
-* If existing implementations of a paper exist, **you must not look at them**. All code must be implemented with a cleanroom mentality.
-* Code should either be written on your personal laptop or computer or on Latently's GPU cluster. Do not write code for this project at work or at school.
+* If existing implementations of a paper exist, **you must not look at them**. All code must be implemented with a cleanroom mentality. This is important for legal reasons.
+* Code should either be written on your personal computer or on Latently's GPU cluster. Do not write code for this project at work or at school.
 * Code is subject to code review. Commits should be small and frequent.
 * Repositories for specific papers should be named as follows: Author1Author2Author3EtAl1996_1. In other words, the last name of the first three authors followed by EtAl if there are more than three and followed by the year. If more than one paper has that code then add an underscore and increment a counter that starts at 1.
 * Dependencies are discouraged.
 * You may not depend on libraries with viral licenses.
 
-## FAQ
-
-1. **Why are you doing this?**
-
-This project increases the talent pool for AI/ML which benefits both engineers and companies. Additionally, by abstracting implementations into libraries that implement the publically available literature we can more easily see what is patented and what is not in addition to discovering prior art that can be used to invalidate patents. It also helps new inventors know what inventions are OK to incorporate into new inventions and what inventions they will need to get permission to use. 
-
-4. **How do I join?**
-
-Contact brian@latent.ly with your resume.
