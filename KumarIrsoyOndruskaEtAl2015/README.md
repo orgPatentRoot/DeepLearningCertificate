@@ -1,1 +1,0 @@
-# Repo for implementation of Ask Me Anything: Dynamic Memory Networks for Natural Language Processing by Ankit Kumar, Ozan Irsoy, Peter Ondruska, Mohit Iyyer, James Bradbury, Ishaan Gulrajani, Victor Zhong, Romain Paulus, Richard Socher (2015)
