@@ -1,3 +1,5 @@
+<p align="center"><img src="https://latentdotly.files.wordpress.com/2017/04/latently_300.png?w=525&h=525" width="100"></p>
+
 Welcome to the LDLC! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
 
 More specifically, through the LDLC we plan to achieve the following objectives:
