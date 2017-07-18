@@ -31,6 +31,10 @@ For those who are more business oriented we will work with you to design a novel
 
 For those who are more academically oriented you may use our resources on the Comet and Stampede supercomputer (currently #20 in the world) to publish a model built using either [*emergent*](http://grey.colorado.edu/emergent), NEURON, Genesis3, Moose, NEST, PyNN, Brian or Freesurfer. At this time we can only provide mentorship for *emergent*. Note that research done on The Neuroscience Gateway must advance the state of the art in computational neuroscience, computational cognitive neuroscience, cognitive computational neuroscience or a related field. The code will be licensed under the GPLv2 and will not be sold on our marketplace.
 
+# For Enterprises
+
+Please send all requests regarding projects, requests for implementations of papers or license purchases to brian@latent.ly
+
 # About Latently
 
 Latently is a deep learning startup out of Boulder, Co, founded by Brian Mingus. We have substantial expertise in deep learning, software engineering and free culture. We first tested the LDLC in a successful pilot phase and are now launching it to the public. Latently is committed to first experimenting with and then delivering novel mechanisms for democratizing technological progress and reducing inequality and we invite you to help.
