@@ -1,6 +1,3 @@
-![Latently Deep Learning Certificate](LatentlyDeepLearningCertVER2RGB.png)
-
-
 Welcome to the LDLC! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
 
 More specifically, through the LDLC we plan to achieve the following objectives:
@@ -38,3 +35,6 @@ Please send all requests regarding projects, requests for implementations of pap
 # About Latently
 
 Latently is a deep learning startup out of Boulder, Co, founded by Brian Mingus. We have substantial expertise in deep learning, software engineering and free culture. We first tested the LDLC in a successful pilot phase and are now launching it to the public. Latently is committed to first experimenting with and then delivering novel mechanisms for democratizing technological progress and reducing inequality and we invite you to help.
+
+# Latently Deep Learning Certificate
+![Latently Deep Learning Certificate](LatentlyDeepLearningCertVER2RGB.png)
