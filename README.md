@@ -1,3 +1,6 @@
+![Latently Deep Learning Certificate](LatentlyDeepLearningCertVER2RGB.png)
+
+
 Welcome to the LDLC! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
 
 More specifically, through the LDLC we plan to achieve the following objectives:
