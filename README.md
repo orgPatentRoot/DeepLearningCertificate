@@ -13,7 +13,10 @@ More specifically, through the LDLC program we plan to achieve the following obj
 
 Developers own their own code and also issue a limited license to Latently that allows us to explore novel schemes for compensating developers for the code they write. Latently *does not* own the code, but has a license to sell it on your behalf according to terms (novel compensation schemes) you agree to on our marketplace.
 
-# Getting started
+# Earning the Latently Deep Learning Certificate
+
+<p align="center"><img src="https://raw.githubusercontent.com/Latently/DLC/master/LatentlyDeepLearningCertVER2RGB.png" width="400"></p>
+
 
 ## Professional track
 
@@ -36,6 +39,3 @@ Please send all requests regarding projects, requests for implementations of pap
 # About Latently
 
 Latently is a deep learning startup out of Boulder, Co, founded by Brian Mingus. We have substantial expertise in deep learning, software engineering and free culture. We first tested the LDLC in a successful pilot phase and are now launching it to the public. Latently is committed to first experimenting with and then delivering novel mechanisms for democratizing technological progress and reducing inequality and we invite you to help.
-
-# Latently Deep Learning Certificate
-![Latently Deep Learning Certificate](LatentlyDeepLearningCertVER2RGB.png)
