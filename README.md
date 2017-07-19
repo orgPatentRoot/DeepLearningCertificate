@@ -1,12 +1,12 @@
 <p align="center"><img src="https://latentdotly.files.wordpress.com/2017/04/latently_300.png?w=525&h=525" width="100"></p>
 
-Welcome to the LDLC! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
+Welcome to the Latently Deep Learning Certificate (LDLC)! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
 
 More specifically, through the LDLC we plan to achieve the following objectives:
 
 
 * Publicly implement all scientific papers and patents in artificial intelligence and machine learning while developing a common code base that makes it easier to implement and develop new advances.
-* As a community, discover, to the greatest extent possible, who owns what aspects of implementations so as to perform proper credit assignment. In the case where IP is discovered to be owned by another entity, seek to establish permission to use their IP.
+* As a community, discover, to the greatest extent possible, who owns what aspects of implementations so as to perform proper credit assignment. In the case where intellectual property (IP) is discovered to be owned by another entity, seek to establish permission to use their IP.
 * Provide access to state of the art hardware for AI/ML to anyone interested in learning and earning a certificate. This currently consists of a large cluster of nVidia P100s on IBM Cloud and millions of core hours on the Stampede and Comet supercomputers.
 * Create a community of engineers, researchers and mentors dedicated to staying up-to-date with and advancing the state of the art, here on GitHub and also on Slack: http://latently.slack.com
 * Issue certificates endorsing the engineering maturity required to implement, replicate or write a scientific paper on our platforms. An unlimited number of certificates may be earned.
