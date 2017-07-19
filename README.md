@@ -11,7 +11,7 @@ More specifically, through the LDLC program we plan to achieve the following obj
 * Issue certificates endorsing the engineering maturity required to implement, replicate or write a scientific paper on our platforms. An unlimited number of certificates may be earned.
 * Explore novel methods of composing implementations into enterprise solutions and compensating developers for the code they have written.
 
-Developers own their own code and also issue a limited license to Latently that allows us to explore novel schemes for compensating developers for the code they write. Latently *does not* own the code, but has a license to sell it on your behalf according to terms (novel compensation schemes) you agree to on our marketplace.
+Developers own their own code and also issue a limited license to Latently that allows us to explore novel schemes for compensating developers for the code they write. Latently *does not* own the code, but has a license to sell it on your behalf according to terms (novel compensation schemes) you agree to on our future marketplace.
 
 # Earning the Latently Deep Learning Certificate
 
