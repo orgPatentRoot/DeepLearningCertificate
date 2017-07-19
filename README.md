@@ -6,7 +6,7 @@ More specifically, through the LDLC we plan to achieve the following objectives:
 
 * Publicly implement all scientific papers and patents in artificial intelligence and machine learning while developing a common code base that makes it easier to implement and develop new advances.
 * As a community, discover, to the greatest extent possible, who owns what aspects of implementations so as to perform proper credit assignment. In the case where intellectual property (IP) is discovered to be owned by another entity, seek to establish permission to use their IP.
-* Provide access to state of the art hardware for AI/ML to anyone interested in learning and earning a certificate. This currently consists of a large cluster of nVidia P100s on IBM Cloud and millions of core hours on the Stampede and Comet supercomputers.
+* Provide access to state of the art hardware for artificial intelligence and machine learning (AI/ML) to anyone interested in learning and earning a certificate. This currently consists of a large cluster of nVidia P100s on IBM Cloud and millions of core hours on the Stampede and Comet supercomputers.
 * Create a community of engineers, researchers and mentors dedicated to staying up-to-date with and advancing the state of the art, here on GitHub and also on Slack: http://latently.slack.com
 * Issue certificates endorsing the engineering maturity required to implement, replicate or write a scientific paper on our platforms. An unlimited number of certificates may be earned.
 * Explore novel methods of composing implementations into enterprise solutions and compensating developers for the code they have written.
