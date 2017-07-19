@@ -1,9 +1,8 @@
 <p align="center"><img src="https://latentdotly.files.wordpress.com/2017/04/latently_300.png?w=525&h=525" width="100"></p>
 
-Welcome to the Latently Deep Learning Certificate (LDLC)! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning. To join, send your resume to dlc@latent.ly or keep reading.
+Welcome to the Latently Deep Learning Certificate (LDLC)! This is a joint effort by Latently, Bitfusion, IBM Cloud and The Neuroscience Gateway to democratize progress in deep learning.
 
 More specifically, through the LDLC we plan to achieve the following objectives:
-
 
 * Publicly implement all scientific papers and patents in artificial intelligence and machine learning while developing a common code base that makes it easier to implement and develop new advances.
 * As a community, discover, to the greatest extent possible, who owns what aspects of implementations so as to perform proper credit assignment. In the case where intellectual property (IP) is discovered to be owned by another entity, seek to establish permission to use their IP.
