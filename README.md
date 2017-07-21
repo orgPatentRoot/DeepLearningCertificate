@@ -14,7 +14,7 @@ You can also simply fork the LDLC and implement a paper that we don't yet have a
 
 More advanced candidates may use our our hardware and mentorship resources to conduct original research and to publish it. 
 
-For those who are more business oriented we will work with you to design a novel deep learning architecture using state-of-the-art methods on our GPU cluster.
+For those who are more business oriented we will work with you to design a novel deep learning architecture using state-of-the-art methods on our GPU cluster using i.e. Tensorflow.
 
 For those who are more academically oriented you may use our resources on the Comet and Stampede supercomputer (currently #20 in the world) to publish a model built using either [*emergent*](http://grey.colorado.edu/emergent), NEURON, Genesis3, Moose, NEST, PyNN, Brian or Freesurfer. At this time we can only provide mentorship for *emergent*. Note that research done on The Neuroscience Gateway must advance the state of the art in computational neuroscience, computational cognitive neuroscience, cognitive computational neuroscience or a related field. The code will be licensed under the GPLv2 and will not be sold on our marketplace.
 
@@ -28,6 +28,12 @@ All implementations should have a well-documented README and when possible the c
 
 Don't look at other existing implementations of your paper, otherwise the author of those implementations may own your code.
 
-# Code ownership
+# Frequently Asked Questions
 
-Latently is building a marketplace that allows enterprises to compose implementations into solutions and for all the developers to be compensated. Eventually participants will own their own code and Latently will receive a limited license to it but for now all code is going in the public domain as we build out the certificate program.
+## Who owns the code?
+
+Latently is building a marketplace that allows enterprises to compose implementations into solutions and for all the developers to be compensated. Eventually participants will own their own code and Latently will receive a limited license allowing us to sell it on behalf of developers. For now though all code is going in the public domain as we build out the certificate program.
+
+## How long does it take?
+
+This really depends on the paper and your skill level. Estimate between 1 week and three months.
