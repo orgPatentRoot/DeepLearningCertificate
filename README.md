@@ -27,3 +27,7 @@ Code is subject to code review and should be factored out into reusable modules 
 All implementations should have a well-documented README and when possible the code should run in a Jupyter notebook.
 
 Don't look at other existing implementations of your paper, otherwise the author of those implementations may own your code.
+
+# Code ownership
+
+Latently is building a marketplace that allows enterprises to compose implementations into solutions and for all the developers to be compensated. Eventually participants will own their own code and Latently will receive a limited license to it but for now all code is going in the public domain as we build out the certificate program.
