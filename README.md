@@ -6,16 +6,16 @@
 
 ## Professional track
 
-To gain access to our cluster of nVidia P100s running on Bitfusion Flex send your resume to dlc@latent.ly. We will set up a Google Hangout and work with you to pick a paper that is suitable for your skill level. 
-
-You can also simply fork the LDLC and implement a paper that we don't yet have an implementation of, or significantly optimize or substantially refactor and improve an existing implementation. Most existing code uses Tensorflow, but other frameworks are acceptable as well. 
+To gain access to our cluster of nVidia P100s running on Bitfusion Flex send your resume to dlc@latent.ly. We will set up a Google Hangout and work with you to pick a paper that is suitable for your skill level. We have an extensive bibliography of the latest findings that is updated daily.
 
 ## Research track
 
-More advanced candidates may use our our hardware and mentorship resources to conduct original research and to publish it. 
+More advanced candidates may use our our hardware and mentorship resources to conduct original research and to publish it in a lightweight fashion (i.e., on the arXiv, or here). 
 
+### Business
 For those who are more business oriented we will work with you to design a novel deep learning architecture using state-of-the-art methods on our GPU cluster using i.e. Tensorflow.
 
+### Academic
 For those who are more academically oriented you may use our resources on the Comet and Stampede supercomputer (currently #20 in the world) to publish a model built using either [*emergent*](http://grey.colorado.edu/emergent), NEURON, Genesis3, Moose, NEST, PyNN, Brian or Freesurfer. At this time we can only provide mentorship for *emergent*. Note that research done on The Neuroscience Gateway must advance the state of the art in computational neuroscience, computational cognitive neuroscience, cognitive computational neuroscience or a related field. The code will be licensed under the GPLv2 and will not be sold on our marketplace.
 
 # Implementation guidelines
@@ -30,10 +30,14 @@ Don't look at other existing implementations of your paper, otherwise the author
 
 # Frequently Asked Questions
 
-## Who owns the code?
+## What languages / frameworks can I use?
 
-Latently is building a marketplace that allows enterprises to compose implementations into solutions and for all the developers to be compensated. Eventually participants will own their own code and Latently will receive a limited license allowing us to sell it on behalf of developers. For now though all code is going in the public domain as we build out the certificate program.
+In general we prefer you use Python and Tensorflow but that is not a hard rule.
 
 ## How long does it take?
 
-This really depends on the paper and your skill level. Estimate between 1 week and three months.
+This really depends on the paper and your skill level. Estimate between 1 week and 3 months.
+
+## Who owns the code?
+
+For now all code is licensed into the public domain. In the future you will own your code and Latently will get a limited license to sell it on your behalf on our marketplace.
