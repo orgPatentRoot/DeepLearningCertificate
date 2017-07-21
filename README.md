@@ -1,6 +1,6 @@
 <p align="center"><img src="https://latentdotly.files.wordpress.com/2017/04/latently_300.png?w=525&h=525" width="100"></p>
 
-Learn more on the IBM Bluemix blog: [Latently, Bitfusion, and IBM Cloud enable democratized access to deep learning](https://www.ibm.com/blogs/bluemix/2017/07/latently-bitfusion-ibm-cloud-deep-learning/)
+[Latently, Bitfusion, and IBM Cloud enable democratized access to deep learning](https://www.ibm.com/blogs/bluemix/2017/07/latently-bitfusion-ibm-cloud-deep-learning/)
 
 # Earning the Latently Deep Learning Certificate
 
