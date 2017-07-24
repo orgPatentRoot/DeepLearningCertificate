@@ -10,7 +10,7 @@ To implement a paper on our GPU cluster send your resume to brian@latent.ly. We 
 
 ## Research track
 
-More advanced candidates may use our our hardware and mentorship resources to conduct original research and to publish it in a lightweight fashion (i.e., on the arXiv, or here). 
+More advanced candidates may use our hardware and mentorship resources to conduct original research and to publish it in a lightweight fashion (i.e., on the arXiv, or here). 
 
 ### Business
 For those who are more business oriented we will work with you to design a novel deep learning architecture using state-of-the-art methods on our GPU cluster using i.e. Tensorflow.
