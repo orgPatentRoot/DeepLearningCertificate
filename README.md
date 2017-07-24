@@ -6,7 +6,7 @@
 
 ## Professional track
 
-To gain access to our cluster of nVidia P100s running on Bitfusion Flex send your resume to dlc@latent.ly. We will set up a Google Hangout and work with you to pick a paper that is suitable for your skill level. We have an extensive bibliography of the latest findings that is updated daily.
+To implement a paper on our GPU cluster send your resume to brian@latent.ly. We will reply with an invite to our Paperpile-based bibliography which is updated with the latest advances every day. We will then set up a Google Hangout and work with you to pick a paper that is suitable for your skill level and get you an account on our GPU cluster which runs Bitfusion Flex. Flex allows you to spin up a Jupyter notebook in which even remote GPUs appear local, making it possible to do large scale data-parallel training with relative ease.
 
 ## Research track
 
@@ -20,7 +20,7 @@ For those who are more academically oriented you may use our resources on the Co
 
 # Implementation guidelines
 
-In general it is preferable to replicate a result. This implies reproducing the plots, statistics and results in the paper. Sometimes this isn't possible, in which case the nearest approximate implementation is okay.
+In general it is preferable to replicate a result. This implies reproducing the plots, statistics and results in the paper. Sometimes this isn't possible, in which case the nearest approximate implementation is sufficient.
 
 Code is subject to code review and should be factored out into reusable modules and functions. Comments are appreciated.
 
@@ -32,7 +32,7 @@ Don't look at other existing implementations of your paper, otherwise the author
 
 ## What languages / frameworks can I use?
 
-In general we prefer you use Python and Tensorflow but that is not a hard rule.
+In general we prefer you use Tensorflow but that is not a hard rule.
 
 ## How long does it take?
 
@@ -40,4 +40,4 @@ This really depends on the paper and your skill level. Estimate between 1 week a
 
 ## Who owns the code?
 
-For now all code is licensed into the public domain. In the future you will own your code and Latently will get a limited license to sell it on your behalf on our marketplace.
+For now all code is licensed into the public domain.
