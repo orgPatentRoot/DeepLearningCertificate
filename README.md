@@ -41,3 +41,9 @@ This really depends on the paper and your skill level. Estimate between 1 week a
 ## Who owns the code?
 
 For now all code is licensed into the public domain.
+
+## Is there an example?
+
+We will have a gold standard example up soon - for now check out this implementation: https://github.com/Latently/DLC/tree/master/MikolovJoulinChopraEtAl2015
+
+
