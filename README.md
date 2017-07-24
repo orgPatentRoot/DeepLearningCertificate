@@ -16,7 +16,7 @@ More advanced candidates may use our hardware and mentorship resources to conduc
 For those who are more business oriented we will work with you to design a novel deep learning architecture using state-of-the-art methods on our GPU cluster using i.e. Tensorflow.
 
 ### Academic
-For those who are more academically oriented you may use our resources on the Comet and Stampede supercomputer (currently #20 in the world) to publish a model built using either [*emergent*](http://grey.colorado.edu/emergent), NEURON, Genesis3, Moose, NEST, PyNN, Brian or Freesurfer. At this time we can only provide mentorship for *emergent*. Note that research done on The Neuroscience Gateway must advance the state of the art in computational neuroscience, computational cognitive neuroscience, cognitive computational neuroscience or a related field. The code will be licensed under the GPLv2 and will not be sold on our marketplace.
+For those who are more academically oriented you may use our resources on the Comet and Stampede supercomputer (currently #20 in the world) to publish a model built using either [*emergent*](http://grey.colorado.edu/emergent), NEURON, Genesis3, Moose, NEST, PyNN, Brian or Freesurfer. At this time we can only provide mentorship for *emergent*. Note that research done on The Neuroscience Gateway must advance the state of the art in computational neuroscience, computational cognitive neuroscience, cognitive computational neuroscience or a related field.
 
 # Implementation guidelines
 
