@@ -22,9 +22,8 @@ class base_rnn_graph(object):
     # Graph constructor
     def __init__(self, num_gpus, vocabulary_size, num_training_unfoldings, num_validation_unfoldings, training_batch_size,
                  validation_batch_size, optimization_frequency):
-
+        
         # Input hyperparameters
-        self._training_batch_size = training_batch_size
         self._num_gpus = num_gpus
         self._num_training_unfoldings = num_training_unfoldings
         self._num_validation_unfoldings = num_validation_unfoldings
@@ -44,7 +43,7 @@ class base_rnn_graph(object):
             self._setup_cell_parameters()
             self._setup_training_data()
             self._setup_validation_data()
-                
+   
             # Optimizer hyperparameters
             self._clip_norm = tf.placeholder(tf.float32)
             self._learning_rate = tf.placeholder(tf.float32)
@@ -58,23 +57,11 @@ class base_rnn_graph(object):
             # Reset training state
             self._reset_training_state = self._reset_training_state_fun()
                 
-            # Train cell on training data
+            # Train RNN on training data
             for i in range(self._num_training_unfoldings // self._optimization_frequency):
-                training_labels = []
-                training_outputs = []
-                for tower in range(self._num_towers):
-                    training_labels.append([])
-                    training_outputs.append([])
-                for tower in range(self._num_towers):
-                    training_outputs[tower], training_labels[tower] = \
-                        self._training_tower(i, tower, tower)
-                all_training_outputs = []
-                all_training_labels = []
-                for tower in range(self._num_towers):
-                    all_training_outputs += training_outputs[tower]
-                    all_training_labels += training_labels[tower]
-                logits = tf.concat(all_training_outputs, 0)
-                labels = tf.concat(all_training_labels, 0)
+                
+                #
+                logits, labels = self._run_training_rnn(i)
 
                 # Replace with hierarchical softmax in the future
                 self._cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
@@ -82,7 +69,7 @@ class base_rnn_graph(object):
                 gradients, variables = zip(*self._optimizer.compute_gradients(self._cost))
                 gradients, _ = tf.clip_by_global_norm(gradients, self._clip_norm)
                 self._optimize = self._optimizer.apply_gradients(zip(gradients, variables))
-                
+
             # Summarize training performance
             tf.summary.scalar('cost', self._cost)
             self._training_summary = tf.summary.merge_all()
@@ -90,19 +77,14 @@ class base_rnn_graph(object):
             # Initialization:
             
             self._initialization = tf.global_variables_initializer()
-                
+                    
             # Validation:
     
             # Reset validation state
             self._reset_validation_state = self._reset_validation_state_fun()
-                
-            # Run cell on validation data
-            validation_outputs = []
-            for tower in range(self._num_towers):
-                validation_outputs.append([])
-            for tower in range(self._num_towers):
-                validation_outputs[tower] = self._validation_tower(tower, tower)
-            logits = validation_outputs
+
+            # Run RNN on validation data
+            logits = self._run_validation_rnn()
 
             # Validation prediction, replace with hierarchical softmax in the future
             self._validation_prediction = tf.nn.softmax(logits)
@@ -125,11 +107,39 @@ class base_rnn_graph(object):
     # Placeholder function to reset validation state
     def _reset_validation_state_fun(self):
         print('Validation state reset not defined')
+        
+    #
+    def _run_training_rnn(self, i):
+        training_labels = []
+        training_outputs = []
+        for tower in range(self._num_towers):
+            training_labels.append([])
+            training_outputs.append([])
+        for tower in range(self._num_towers):
+            training_outputs[tower], training_labels[tower] = self._training_tower(i, tower, tower)
+        all_training_outputs = []
+        all_training_labels = []
+        for tower in range(self._num_towers):
+            all_training_outputs += training_outputs[tower]
+            all_training_labels += training_labels[tower]
+        logits = tf.concat(all_training_outputs, 0)
+        labels = tf.concat(all_training_labels, 0)
+        return logits, labels
+
+    #
+    def _run_validation_rnn(self):
+        validation_outputs = []
+        for tower in range(self._num_towers):
+            validation_outputs.append([])
+        for tower in range(self._num_towers):
+            validation_outputs[tower] = self._validation_tower(tower,tower)
+        logits = validation_outputs
+        return logits
     
     # Placeholder function to set up cell parameters
     def _setup_cell_parameters(self):
-        print('Cell parameters not defined')
-        
+        print('Cell parameters not defined')  
+                
     # Placeholder function to set up training parameters
     def _setup_training_parameters(self):
         print('Training parameters not defined')
